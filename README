@@ -1,0 +1,32 @@
+=============
+ Description
+=============
+Tombstone - A deadman's chest plugin
+Save your players' inventory from disappearing when they die.
+I used Deadmans Chest in hMod and thought it was a great plugin, so I started my own version for Bukkit.
+
+Download: 
+Download (Direct JAR): 
+Source: https://github.com/TheDgtl/Tombstone
+
+=============
+ Features
+=============
+If the player is carrying a chest when they die, place that chest and fill it with as much of their inventory as possible
+If the player is allowed, and is carrying two chests, a large chest will spawn to catch all of their inventory
+Possible for specific groups/players to be given free chests with no need to carry one with them
+Any items that won't fit in the chest will still drop to the ground!
+Depends on the Permissions plugin for now
+
+=============
+ Permissions
+=============
+tombstone.use - Allow the player/group to use the tombstone mod
+tombstone.freechest - Allow the player to get a chest whether they are carrying a chest or not
+tombstone.large - Allow the player to spawn a large chest if carrying two chests and if one will fit
+
+=============
+  Changes
+=============
+[Version 0.02]
+  - Initial Public Release
