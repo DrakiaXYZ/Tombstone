@@ -75,7 +75,7 @@ public class Tombstone extends JavaPlugin {
         	
         	// Get the current player location.
         	Location loc = p.getLocation();
-        	Block block = getServer().getWorlds()[0].getBlockAt(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+        	Block block = p.getWorld().getBlockAt(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
         	
         	// If we run into something we don't want to destroy, go one up.
         	if (	block.getType() == Material.STEP || 
@@ -87,7 +87,7 @@ public class Tombstone extends JavaPlugin {
         			block.getType() == Material.REDSTONE_TORCH_ON ||
         			block.getType() == Material.REDSTONE_TORCH_OFF ||
         			block.getType() == Material.CAKE_BLOCK) 
-        		block = getServer().getWorlds()[0].getBlockAt(loc.getBlockX(), loc.getBlockY() + 1, loc.getBlockZ()); 
+        		block = p.getWorld().getBlockAt(loc.getBlockX(), loc.getBlockY() + 1, loc.getBlockZ()); 
 
         	// Check if we can replace the block.
 			if ( !canReplace(block.getType()) ) {
