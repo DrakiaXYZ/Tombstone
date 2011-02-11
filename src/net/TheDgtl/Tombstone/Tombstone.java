@@ -2,6 +2,7 @@ package net.TheDgtl.Tombstone;
 
 import java.io.File;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.ListIterator;
 import java.util.logging.Logger;
 
@@ -24,6 +25,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import com.griefcraft.lwc.LWC;
 import com.griefcraft.lwc.LWCPlugin;
+import com.griefcraft.model.Protection;
 import com.griefcraft.model.ProtectionTypes;
 import com.nijiko.permissions.PermissionHandler;
 import com.nijikokun.bukkit.Permissions.Permissions;
@@ -33,6 +35,9 @@ public class Tombstone extends JavaPlugin {
 	private final eListener entityListener = new eListener();
 	private PermissionHandler Permissions = null;
 	private Plugin lwcPlugin = null;
+	private LinkedList<lwcBlock> lwcQueue = new LinkedList<lwcBlock>();
+	private static long lwcTime = 3600;
+	private TombThread lwcThread = null;
 	
 	public Tombstone(PluginLoader pluginLoader, Server instance, PluginDescriptionFile desc, File folder, File plugin, ClassLoader cLoader) {
     	super(pluginLoader, instance, desc, folder, plugin, cLoader);
@@ -50,14 +55,36 @@ public class Tombstone extends JavaPlugin {
 	}
 	
 	public void onDisable() {
-		
+		// Clear the lwcQueue/remove protection on exit
+		checkLWC();
+		if (lwcPlugin != null) {
+			LWC lwc = ((LWCPlugin)lwcPlugin).getLWC();
+			synchronized(lwcQueue) {
+				while (!lwcQueue.isEmpty()) {
+					lwcBlock block = lwcQueue.removeFirst();
+					// Remove the protection on the block, and remove block from queue.
+					Block _block = block.getBlock();
+					Protection protection = lwc.getPhysicalDatabase().loadProtectedEntity(_block.getX(), _block.getY(), _block.getZ());
+					if (protection != null) {
+						lwc.getPhysicalDatabase().unregisterProtectedEntity(protection.getX(), protection.getY(), protection.getZ());
+						lwc.getPhysicalDatabase().unregisterProtectionRights(protection.getId());
+					}
+				}
+			}
+		}
+		if (lwcThread != null && lwcThread.isAlive()) {
+			lwcThread.interrupt();
+			try {lwcThread.join();} catch (InterruptedException e) {}
+		}
 	}
 	
 	private void checkLWC() {
 		if (lwcPlugin != null) return;
 		lwcPlugin = getServer().getPluginManager().getPlugin("LWC");
 		if (lwcPlugin != null) {
-			log.info("[Tombstone] LWC Found, enabling chest protection.");
+			log.info("[Tombstone] LWC Found, enabling chest protection. Enabling LWC disable thread.");
+			lwcThread = new TombThread();
+			lwcThread.start();
 		}
 	}
 	
@@ -66,7 +93,12 @@ public class Tombstone extends JavaPlugin {
 		if (lwcPlugin == null) return false;
 		LWC lwc = ((LWCPlugin)lwcPlugin).getLWC();
 		// Register the chest as private
-		lwc.getPhysicalDatabase().registerProtectedEntity(block.getTypeId(), ProtectionTypes.PRIVATE, player.getName(), "", block.getX(), block.getY(), block.getZ());
+		lwc.getPhysicalDatabase().registerProtectedEntity(block.getTypeId(), ProtectionTypes.PRIVATE, player.getName(), "", block.getX(), block.getY(), block.getZ()); 
+		// Add this block to the lwcQueue to remove protection later.
+		synchronized(lwcQueue) {
+			lwcQueue.addLast(new lwcBlock(block, System.currentTimeMillis()));
+			lwcQueue.notifyAll();
+		}
 		return true;
 	}
 	
@@ -263,5 +295,63 @@ public class Tombstone extends JavaPlugin {
         			mat == Material.SNOW || 
         			mat == Material.SUGAR_CANE);
         }
+	}
+	
+	private class TombThread extends Thread {
+		public void run() {
+			checkLWC();
+			if (lwcPlugin == null) {
+				Tombstone.log.info("[Tombstone] LWC not running, stopping LWC disable thread");
+				return;
+			}
+			LWC lwc = ((LWCPlugin)lwcPlugin).getLWC();
+			
+			while (!isInterrupted()) {
+				synchronized(lwcQueue) {
+					// Wait for a block
+					while (lwcQueue.isEmpty()) {
+						try {lwcQueue.wait();}
+						catch (InterruptedException e){
+							Tombstone.log.info("[Tombstone] Stopping LWC disable thread");
+							return;
+						}
+					}
+					// Check if the block should be removed
+					lwcBlock block = lwcQueue.getFirst();
+					long time = System.currentTimeMillis() / 1000;
+					if (time > ((block.getTime() / 1000) + Tombstone.lwcTime)) {
+						// Remove the protection on the block, and remove block from queue.
+						Block _block = block.getBlock();
+						Protection protection = lwc.getPhysicalDatabase().loadProtectedEntity(_block.getX(), _block.getY(), _block.getZ());
+						if (protection != null) {
+							lwc.getPhysicalDatabase().unregisterProtectedEntity(protection.getX(), protection.getY(), protection.getZ());
+							lwc.getPhysicalDatabase().unregisterProtectionRights(protection.getId());
+						}
+						lwcQueue.removeFirst();
+					}
+				}
+				// Sleep another minute before checking for another chest to remove
+				try {Thread.sleep(60 * 1000);}
+				catch (InterruptedException e) {
+					Tombstone.log.info("[Tombstone] Stopping LWC disable thread");
+					return;
+				}
+			}
+		}
+	}
+	
+	private class lwcBlock {
+		private Block block;
+		private long time;
+		lwcBlock(Block block, long time) {
+			this.block = block;
+			this.time = time;
+		}
+		long getTime() {
+			return time;
+		}
+		Block getBlock() {
+			return block;
+		}
 	}
 }
