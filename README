@@ -16,7 +16,8 @@ If the player is carrying a chest when they die, place that chest and fill it wi
 If the player is allowed, and is carrying two chests, a large chest will spawn to catch all of their inventory
 Possible for specific groups/players to be given free chests with no need to carry one with them
 Any items that won't fit in the chest will still drop to the ground!
-Depends on the Permissions plugin for now
+Supports the Permissions plugin, will default to allowing everyone to use tombstone if not available
+Supports LWC for chest protection if it is installed
 
 =============
  Permissions
@@ -24,9 +25,13 @@ Depends on the Permissions plugin for now
 tombstone.use - Allow the player/group to use the tombstone mod
 tombstone.freechest - Allow the player to get a chest whether they are carrying a chest or not
 tombstone.large - Allow the player to spawn a large chest if carrying two chests and if one will fit
+tombstone.lwc - Protect the placed chest if LWC is enabled
 
 =============
   Changes
 =============
+[Version 0.03]
+  - Added LWC support
+  - Made Permissions optional instead of required. Default without Permissions is allow all to use
 [Version 0.02]
   - Initial Public Release

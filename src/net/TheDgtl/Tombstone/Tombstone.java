@@ -22,13 +22,17 @@ import org.bukkit.plugin.PluginLoader;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import com.griefcraft.lwc.LWC;
+import com.griefcraft.lwc.LWCPlugin;
+import com.griefcraft.model.ProtectionTypes;
 import com.nijiko.permissions.PermissionHandler;
 import com.nijikokun.bukkit.Permissions.Permissions;
 
 public class Tombstone extends JavaPlugin {
 	public static Logger log;
 	private final eListener entityListener = new eListener();
-	public PermissionHandler Permissions = null;
+	private PermissionHandler Permissions = null;
+	private Plugin lwcPlugin = null;
 	
 	public Tombstone(PluginLoader pluginLoader, Server instance, PluginDescriptionFile desc, File folder, File plugin, ClassLoader cLoader) {
     	super(pluginLoader, instance, desc, folder, plugin, cLoader);
@@ -36,29 +40,52 @@ public class Tombstone extends JavaPlugin {
 	}
 	
 	public void onEnable() {
-		PluginDescriptionFile pdfFile = this.getDescription();
+		PluginDescriptionFile pdfFile = getDescription();
         log.info(pdfFile.getName() + " v." + pdfFile.getVersion() + " is enabled.");
         
         PluginManager pm = getServer().getPluginManager();
         pm.registerEvent(Event.Type.ENTITY_DEATH, entityListener, Priority.Normal, this);
-        this.setupPermissions();
+        setupPermissions();
+        checkLWC();
 	}
 	
 	public void onDisable() {
 		
 	}
 	
-    public void setupPermissions() {
-    	Plugin perm = this.getServer().getPluginManager().getPlugin("Permissions");
+	private void checkLWC() {
+		if (lwcPlugin != null) return;
+		lwcPlugin = getServer().getPluginManager().getPlugin("LWC");
+		if (lwcPlugin != null) {
+			log.info("[Tombstone] LWC Found, enabling chest protection.");
+		}
+	}
+	
+	private Boolean activateLWC(Player player, Block block) {
+		checkLWC();
+		if (lwcPlugin == null) return false;
+		LWC lwc = ((LWCPlugin)lwcPlugin).getLWC();
+		// Register the chest as private
+		lwc.getPhysicalDatabase().registerProtectedEntity(block.getTypeId(), ProtectionTypes.PRIVATE, player.getName(), "", block.getX(), block.getY(), block.getZ());
+		return true;
+	}
+	
+    private void setupPermissions() {
+    	Plugin perm = getServer().getPluginManager().getPlugin("Permissions");
 
     	if(Permissions == null) {
     	    if(perm != null) {
     	    	Permissions = ((Permissions)perm).getHandler();
     	    } else {
-    	    	log.info("[" + this.getDescription().getName() + "] Permission system not enabled. Disabling plugin.");
-    			this.getServer().getPluginManager().disablePlugin(this);
+    	    	log.info("[" + getDescription().getName() + "] Permission system not enabled. Enabling basic usage.");
     	    }
     	}
+    }
+    
+    public Boolean hasPerm(Player player, String perm, Boolean def) {
+    	if (Permissions != null)
+    		return Permissions.has(player, perm);
+    	return def;
     }
 	
 	private class eListener extends EntityListener {
@@ -67,7 +94,7 @@ public class Tombstone extends JavaPlugin {
         public void onEntityDeath(EntityDeathEvent event ) {
         	if (!(event.getEntity() instanceof Player)) return;
         	Player p = (Player)event.getEntity();
-        	if (!Permissions.has(p, "tombstone.use")) return;
+        	if (!hasPerm(p, "tombstone.use", true)) return;
         	if (event.getDrops().size() == 0) {
         		p.sendMessage("[Tombstone] Inventory Empty.");
         		return;
@@ -89,17 +116,18 @@ public class Tombstone extends JavaPlugin {
         			block.getType() == Material.CAKE_BLOCK) 
         		block = p.getWorld().getBlockAt(loc.getBlockX(), loc.getBlockY() + 1, loc.getBlockZ()); 
 
+			// Check if the player has a chest.
+			if (!p.getInventory().contains(Material.CHEST) && !hasPerm(p, "tombstone.freechest", false)) {
+				p.sendMessage("[Tombstone] No chest found in inventory. Inventory dropped");
+				return;
+			}
+        	
         	// Check if we can replace the block.
 			if ( !canReplace(block.getType()) ) {
 				p.sendMessage("[Tombstone] Could not find room for chest. Inventory dropped");
 				return;
 			}
         	
-			// Check if the player has a chest.
-			if (!p.getInventory().contains(Material.CHEST) && !Permissions.has(p, "tombstone.freechest")) {
-				p.sendMessage("[Tombstone] No chest found in inventory. Inventory dropped");
-				return;
-			}
 			int removeChestCount = 1;
 			
 			// Set the current block to a chest, init some variables for later use.
@@ -110,7 +138,7 @@ public class Tombstone extends JavaPlugin {
 			int maxSlot = sChest.getInventory().getSize();
 			
 			// If they are allowed, spawn a large chest to catch their entire inventory.
-			if (Permissions.has(p, "tombstone.large") && !Permissions.has(p, "tombstone.freechest")) {
+			if (hasPerm(p, "tombstone.large", false) && !hasPerm(p, "tombstone.freechest", false)) {
 				removeChestCount = 2;
 				// Check if the player has two chests. No easy way to do it.
 				int chestCount = 0;
@@ -133,9 +161,9 @@ public class Tombstone extends JavaPlugin {
 			}
 			
 			// tombstone.freechest + tombstone.large then just place a large chest.
-			if (Permissions.has(p, "tombstone.freechest")) {
+			if (hasPerm(p, "tombstone.freechest", false)) {
 				removeChestCount = 0;
-				if (Permissions.has(p, "tombstone.large")) {
+				if (hasPerm(p, "tombstone.large", false)) {
 					Block lBlock = findLarge(block);
 					if (lBlock != null) {
 						lBlock.setType(Material.CHEST);
@@ -144,6 +172,11 @@ public class Tombstone extends JavaPlugin {
 					}
 				}
 			}
+			
+			// Protect the chest if LWC is installed.
+			Boolean prot = false;
+			if (hasPerm(p, "tombstone.lwc", true))
+				prot = activateLWC(p, sChest.getBlock());
 			
 			// First get players armor, tends to be more important.
 			if (p.getInventory().getArmorContents().length > 0) {
@@ -196,6 +229,8 @@ public class Tombstone extends JavaPlugin {
 			if (event.getDrops().size() > 0)
 				msg +=  event.getDrops().size() + " items wouldn't fit in chest.";
 			p.sendMessage("[Tombstone] " + msg);
+			if (prot)
+				p.sendMessage("[Tombstone] Chest protected with LWC");
         }
         
         Block findLarge(Block base) {
