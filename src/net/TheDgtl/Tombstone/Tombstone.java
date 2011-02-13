@@ -125,9 +125,11 @@ public class Tombstone extends JavaPlugin {
 		// Register the chest as private
 		lwc.getPhysicalDatabase().registerProtectedEntity(block.getTypeId(), ProtectionTypes.PRIVATE, player.getName(), "", block.getX(), block.getY(), block.getZ()); 
 		// Add this block to the lwcQueue to remove protection later.
-		synchronized(lwcQueue) {
-			lwcQueue.addLast(new TombBlock(block, lBlock, sign, System.currentTimeMillis()));
-			lwcQueue.notifyAll();
+		if (lwcTime > 0) {
+			synchronized(lwcQueue) {
+				lwcQueue.addLast(new TombBlock(block, lBlock, sign, System.currentTimeMillis()));
+				lwcQueue.notifyAll();
+			}
 		}
 		return true;
 	}
