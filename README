@@ -27,8 +27,23 @@ tombstone.large - Allow the player to spawn a large chest if carrying two chests
 tombstone.lwc - Protect the placed chest if LWC is enabled
 
 =============
-  Changes
+ Config
 =============
+lwcEnable - Whether to use LWC if available 
+lwcRemove - Whether to destroy the chest after the LWCTimeout is up.
+lwcTimeout - How long to wait before disabling LWC on a tombstone chest.
+lwcSign - Whether to place a sign on the tombstone (Not implemented)
+
+=============
+ Changes
+=============
+[Version 0.05]
+  - Added config file
+  - Implemented chest removal
+  - Configurable timeout
+  - Toggle LWC usage via config
+[Version 0.04]
+  - Added LWC timeout
 [Version 0.03]
   - Added LWC support
   - Made Permissions optional instead of required. Default without Permissions is allow all to use

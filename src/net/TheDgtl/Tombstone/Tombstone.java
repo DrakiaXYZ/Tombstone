@@ -22,6 +22,7 @@ import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginLoader;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.util.config.Configuration;
 
 import com.griefcraft.lwc.LWC;
 import com.griefcraft.lwc.LWCPlugin;
@@ -36,12 +37,17 @@ public class Tombstone extends JavaPlugin {
 	private PermissionHandler Permissions = null;
 	private Plugin lwcPlugin = null;
 	private LinkedList<lwcBlock> lwcQueue = new LinkedList<lwcBlock>();
-	private static long lwcTime = 3600;
+	private Boolean lwcEnable = true;
+	private int lwcTime = 3600;
+	private Boolean lwcRemove = false;
+	private Boolean lwcSign = true;
 	private TombThread lwcThread = null;
+	private Configuration config;
 	
 	public Tombstone(PluginLoader pluginLoader, Server instance, PluginDescriptionFile desc, File folder, File plugin, ClassLoader cLoader) {
     	super(pluginLoader, instance, desc, folder, plugin, cLoader);
     	log = Logger.getLogger("Minecraft");
+    	config = this.getConfiguration();
 	}
 	
 	public void onEnable() {
@@ -51,7 +57,25 @@ public class Tombstone extends JavaPlugin {
         PluginManager pm = getServer().getPluginManager();
         pm.registerEvent(Event.Type.ENTITY_DEATH, entityListener, Priority.Normal, this);
         setupPermissions();
+        reloadConfig();
         checkLWC();
+	}
+	
+	public void reloadConfig() {
+    	config.load();
+    	lwcEnable = config.getBoolean("lwcEnable", lwcEnable);
+        lwcTime = config.getInt("lwcTimeout", lwcTime);
+        lwcRemove = config.getBoolean("lwcRemove", lwcRemove);
+        lwcSign = config.getBoolean("lwcSign", lwcSign);
+        saveConfig();
+    }
+	
+	public void saveConfig() {
+		config.setProperty("lwcEnable", lwcEnable);
+		config.setProperty("lwcTimeout", lwcTime);
+        config.setProperty("lwcRemove", lwcRemove);
+        config.setProperty("lwcSign", lwcSign);
+        config.save();
 	}
 	
 	public void onDisable() {
@@ -79,6 +103,7 @@ public class Tombstone extends JavaPlugin {
 	}
 	
 	private void checkLWC() {
+		if (!lwcEnable) return;
 		if (lwcPlugin != null) return;
 		lwcPlugin = getServer().getPluginManager().getPlugin("LWC");
 		if (lwcPlugin != null) {
@@ -88,7 +113,7 @@ public class Tombstone extends JavaPlugin {
 		}
 	}
 	
-	private Boolean activateLWC(Player player, Block block) {
+	private Boolean activateLWC(Player player, Block block, Block lBlock) {
 		checkLWC();
 		if (lwcPlugin == null) return false;
 		LWC lwc = ((LWCPlugin)lwcPlugin).getLWC();
@@ -96,7 +121,7 @@ public class Tombstone extends JavaPlugin {
 		lwc.getPhysicalDatabase().registerProtectedEntity(block.getTypeId(), ProtectionTypes.PRIVATE, player.getName(), "", block.getX(), block.getY(), block.getZ()); 
 		// Add this block to the lwcQueue to remove protection later.
 		synchronized(lwcQueue) {
-			lwcQueue.addLast(new lwcBlock(block, System.currentTimeMillis()));
+			lwcQueue.addLast(new lwcBlock(block, lBlock, System.currentTimeMillis()));
 			lwcQueue.notifyAll();
 		}
 		return true;
@@ -208,7 +233,7 @@ public class Tombstone extends JavaPlugin {
 			// Protect the chest if LWC is installed.
 			Boolean prot = false;
 			if (hasPerm(p, "tombstone.lwc", true))
-				prot = activateLWC(p, sChest.getBlock());
+				prot = activateLWC(p, sChest.getBlock(), (lChest != null ? lChest.getBlock() : null));
 			
 			// First get players armor, tends to be more important.
 			if (p.getInventory().getArmorContents().length > 0) {
@@ -319,13 +344,19 @@ public class Tombstone extends JavaPlugin {
 					// Check if the block should be removed
 					lwcBlock block = lwcQueue.getFirst();
 					long time = System.currentTimeMillis() / 1000;
-					if (time > ((block.getTime() / 1000) + Tombstone.lwcTime)) {
+					if (time > ((block.getTime() / 1000) + lwcTime)) {
 						// Remove the protection on the block, and remove block from queue.
 						Block _block = block.getBlock();
 						Protection protection = lwc.getPhysicalDatabase().loadProtectedEntity(_block.getX(), _block.getY(), _block.getZ());
 						if (protection != null) {
 							lwc.getPhysicalDatabase().unregisterProtectedEntity(protection.getX(), protection.getY(), protection.getZ());
 							lwc.getPhysicalDatabase().unregisterProtectionRights(protection.getId());
+							// Remove the chest if configured to.
+							if (lwcRemove) {
+								_block.setType(Material.AIR);
+								if (block.getLBlock() != null)
+									block.getLBlock().setType(Material.AIR);
+							}
 						}
 						lwcQueue.removeFirst();
 					}
@@ -342,9 +373,11 @@ public class Tombstone extends JavaPlugin {
 	
 	private class lwcBlock {
 		private Block block;
+		private Block lBlock = null;
 		private long time;
-		lwcBlock(Block block, long time) {
+		lwcBlock(Block block, Block lBlock, long time) {
 			this.block = block;
+			this.lBlock = lBlock;
 			this.time = time;
 		}
 		long getTime() {
@@ -352,6 +385,9 @@ public class Tombstone extends JavaPlugin {
 		}
 		Block getBlock() {
 			return block;
+		}
+		Block getLBlock() {
+			return lBlock;
 		}
 	}
 }
