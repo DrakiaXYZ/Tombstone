@@ -25,18 +25,24 @@ tombstone.use - Allow the player/group to use the tombstone mod
 tombstone.freechest - Allow the player to get a chest whether they are carrying a chest or not
 tombstone.large - Allow the player to spawn a large chest if carrying two chests and if one will fit
 tombstone.lwc - Protect the placed chest if LWC is enabled
+tombstone.sign - Whether the player gets a sign on their tombstone chest
+tombstone.freesign - Allow the player to get a free sign whether they are carrying one or not.
 
 =============
  Config
 =============
 lwcEnable - Whether to use LWC if available 
 lwcRemove - Whether to destroy the chest after the LWCTimeout is up.
-lwcTimeout - How long to wait before disabling LWC on a tombstone chest.
-lwcSign - Whether to place a sign on the tombstone (Not implemented)
+lwcTimeout - How long to wait before disabling LWC on a tombstone chest. If set to 0 then LWC is never disabled.
+tombSign - Whether to place a sign on the tombstone
 
 =============
  Changes
 =============
+[Version 0.06]
+  - Implemented tombstone signs
+  - Changed message if LWC is enabled to say how long before unprotect/destruction
+  - lwcTime of 0 now indicates that LWC protection never expires
 [Version 0.05]
   - Added config file
   - Implemented chest removal
