@@ -15,8 +15,11 @@ If the player is carrying a chest when they die, place that chest and fill it wi
 If the player is allowed, and is carrying two chests, a large chest will spawn to catch all of their inventory
 Possible for specific groups/players to be given free chests with no need to carry one with them
 Any items that won't fit in the chest will still drop to the ground!
-Supports the Permissions plugin, will default to allowing everyone to use tombstone if not available
-Supports LWC for chest protection if it is installed
+Supports the Permissions plugin, will default to allowing everyone to use basic tombstone if not available
+Supports LWC for chest AND sign protection if it is installed
+Configurable timeout for LWC unprotection
+Configurable timeout for destruction of tombstones, works in unloaded chunks as well
+Quickloot support, right click the sign on a tombstone to loot all items in it (Your tombstone only!)
 
 =============
  Permissions
@@ -27,18 +30,29 @@ tombstone.large - Allow the player to spawn a large chest if carrying two chests
 tombstone.lwc - Protect the placed chest if LWC is enabled
 tombstone.sign - Whether the player gets a sign on their tombstone chest
 tombstone.freesign - Allow the player to get a free sign whether they are carrying one or not.
+tombstone.quickloot - Whether to allow a player/group to quickloot by right clicking the tombstone sign.
 
 =============
  Config
 =============
 lwcEnable - Whether to use LWC if available 
-lwcRemove - Whether to destroy the chest after the LWCTimeout is up.
-lwcTimeout - How long to wait before disabling LWC on a tombstone chest. If set to 0 then LWC is never disabled.
+lwcRemove - Whether to remove LWC after a specific timeout
+lwcTimeout - How long to wait before disabling LWC on a tombstone
 tombSign - Whether to place a sign on the tombstone
+removeTime - How long to wait before destroying a tombstone
+tombRemove - Whether or not to destroy a tombstone after a timeout
 
 =============
  Changes
 =============
+[Version 1.00]
+  - Added ability to remove chests without needing LWC
+  - LWC and remove thread are now a sync task
+  - Right-click sign to quickloot. Permission added.
+  - Better Permissions handling
+  - LWC protects sign
+  - Only create a large chest if needed
+  - Deactivate LWC protection when sign or chest is destroyed
 [Version 0.06]
   - Implemented tombstone signs
   - Changed message if LWC is enabled to say how long before unprotect/destruction
