@@ -179,19 +179,19 @@ public class Tombstone extends JavaPlugin {
     		// Loop through tombstones looking to see if this is part of one.
 			for (Iterator<TombBlock> iter = tombList.iterator(); iter.hasNext();) {
 				TombBlock tBlock = iter.next();
-				if (b.getLocation().equals(tBlock.getBlock().getLocation())) {
+				if (tBlock.getBlock() != null && b.getLocation().equals(tBlock.getBlock().getLocation())) {
 					if (tBlock.getLwcEnabled())
 						deactivateLWC(tBlock);
 					iter.remove();
 					break;
 				}
-				if (b.getLocation().equals(tBlock.getLBlock().getLocation())) {
+				if (tBlock.getLBlock() != null && b.getLocation().equals(tBlock.getLBlock().getLocation())) {
 					if (tBlock.getLwcEnabled())
 						deactivateLWC(tBlock);
 					iter.remove();
 					break;
 				}
-				if (b.getLocation().equals(tBlock.getSign().getLocation())) {
+				if (tBlock.getSign() != null && b.getLocation().equals(tBlock.getSign().getLocation())) {
 					if (tBlock.getLwcEnabled())
 						deactivateLWC(tBlock);
 					iter.remove();

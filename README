@@ -20,6 +20,7 @@ Supports LWC for chest AND sign protection if it is installed
 Configurable timeout for LWC unprotection
 Configurable timeout for destruction of tombstones, works in unloaded chunks as well
 Quickloot support, right click the sign on a tombstone to loot all items in it (Your tombstone only!)
+Place a sign on top of the chest stating the players name and time of death
 
 =============
  Permissions
@@ -45,6 +46,8 @@ tombRemove - Whether or not to destroy a tombstone after a timeout
 =============
  Changes
 =============
+[Version 1.01]
+  - Fixed an NPE when destroying chests
 [Version 1.00]
   - Added ability to remove chests without needing LWC
   - LWC and remove thread are now a sync task
