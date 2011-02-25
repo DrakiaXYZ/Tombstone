@@ -46,6 +46,9 @@ tombRemove - Whether or not to destroy a tombstone after a timeout
 =============
  Changes
 =============
+[Version 1.02]
+  - Permissions 2.0/2.1 support
+  - GroupManager support
 [Version 1.01]
   - Fixed an NPE when destroying chests
 [Version 1.00]

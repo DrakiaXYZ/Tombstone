@@ -7,6 +7,7 @@ import java.util.ListIterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Logger;
 
+import org.anjocaido.groupmanager.GroupManager;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -38,7 +39,10 @@ public class Tombstone extends JavaPlugin {
 	private final eListener entityListener = new eListener();
 	private final bListener blockListener = new bListener();
 	public static Logger log;
-	private Permissions Permissions = null;
+	PluginManager pm;
+	private GroupManager gm = null;
+	private Permissions permissions = null;
+	private double permVersion = 0;
 	private Plugin lwcPlugin = null;
 	private ConcurrentLinkedQueue<TombBlock> tombList = new ConcurrentLinkedQueue<TombBlock>();
 	private Configuration config;
@@ -60,12 +64,19 @@ public class Tombstone extends JavaPlugin {
     	
         log.info(pdfFile.getName() + " v." + pdfFile.getVersion() + " is enabled.");
         
-        PluginManager pm = getServer().getPluginManager();
+        pm = getServer().getPluginManager();
         pm.registerEvent(Event.Type.ENTITY_DEATH, entityListener, Priority.Normal, this);
         pm.registerEvent(Event.Type.BLOCK_BREAK, blockListener, Priority.Normal, this);
         pm.registerEvent(Event.Type.BLOCK_RIGHTCLICKED, blockListener, Priority.Normal, this);
         
-        setupPermissions();
+        if (setupPermissions()) {
+        	if (gm != null)
+        		log.info("[Tombstone] Loaded GroupManager for permissions");
+        	else if (permissions != null)
+        		log.info("[Tombstone] Loaded Permissions v" + permVersion + " for permissions");
+        } else {
+        	log.info("[Tombstone] No permissions plugin found, using default permission settings");
+        }
         reloadConfig();
         checkLWC();
         // Start removal timer. Run every 30 seconds (20 ticks per second)
@@ -153,22 +164,52 @@ public class Tombstone extends JavaPlugin {
 		}
 	}
 	
-    private void setupPermissions() {
-    	Plugin perm = getServer().getPluginManager().getPlugin("Permissions");
-
-	    if(perm != null) {
-	    	Permissions = (Permissions)perm;
-	    } else {
-	    	log.info("[" + getDescription().getName() + "] Permission system not enabled. Enabling basic usage.");
-	    }
-    }
+	/*
+	 * Find what Permissions plugin we're using and enable it.
+	 */
+	private boolean setupPermissions() {
+		Plugin perm;
+		perm = pm.getPlugin("GroupManager");
+		// We're running GroupManager
+		if (perm != null) {
+			if (!perm.isEnabled()) {
+				pm.enablePlugin(perm);
+			}
+			gm = (GroupManager)perm;
+			return true;
+		}
+		
+		perm = pm.getPlugin("Permissions");
+		// We're running Permissions
+		if (perm != null) {
+			if (!perm.isEnabled()) {
+				pm.enablePlugin(perm);
+			}
+			permissions = (Permissions)perm;
+			try {
+				permVersion = Double.parseDouble(Permissions.version);
+			} catch (Exception e) {
+				log.info("Could not determine Permissions version: " + Permissions.version);
+				return false;
+			}
+			return true;
+		}
+		// Permissions not loaded
+		return false;
+	}
     
-    @SuppressWarnings("static-access")
-	public Boolean hasPerm(Player player, String perm, Boolean def) {
-    	if (Permissions != null)
-    		return Permissions.Security.has(player, perm);
-    	return def;
-    }
+	/*
+	 * Check whether the player has the given permissions.
+	 */
+	public boolean hasPerm(Player player, String perm, boolean def) {
+		if (gm != null) {
+			return gm.getPermissionHandler().has(player, perm);
+		} else if (permissions != null) {
+			return permissions.getHandler().has(player, perm);
+		} else {
+			return def;
+		}
+	}
     
     private class bListener extends BlockListener {
     	@Override
