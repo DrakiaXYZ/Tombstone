@@ -40,7 +40,6 @@ public class Tombstone extends JavaPlugin {
 	private final bListener blockListener = new bListener();
 	public static Logger log;
 	PluginManager pm;
-	private GroupManager gm = null;
 	private Permissions permissions = null;
 	private double permVersion = 0;
 	private Plugin lwcPlugin = null;
@@ -70,9 +69,7 @@ public class Tombstone extends JavaPlugin {
         pm.registerEvent(Event.Type.BLOCK_RIGHTCLICKED, blockListener, Priority.Normal, this);
         
         if (setupPermissions()) {
-        	if (gm != null)
-        		log.info("[Tombstone] Loaded GroupManager for permissions");
-        	else if (permissions != null)
+        	if (permissions != null)
         		log.info("[Tombstone] Loaded Permissions v" + permVersion + " for permissions");
         } else {
         	log.info("[Tombstone] No permissions plugin found, using default permission settings");
@@ -169,16 +166,8 @@ public class Tombstone extends JavaPlugin {
 	 */
 	private boolean setupPermissions() {
 		Plugin perm;
-		perm = pm.getPlugin("GroupManager");
-		// We're running GroupManager
-		if (perm != null) {
-			if (!perm.isEnabled()) {
-				pm.enablePlugin(perm);
-			}
-			gm = (GroupManager)perm;
-			return true;
-		}
-		
+		// Apparently GM isn't a new permissions plugin, it's Permissions "2.0.1"
+		// API change broke my plugin.
 		perm = pm.getPlugin("Permissions");
 		// We're running Permissions
 		if (perm != null) {
@@ -202,9 +191,7 @@ public class Tombstone extends JavaPlugin {
 	 * Check whether the player has the given permissions.
 	 */
 	public boolean hasPerm(Player player, String perm, boolean def) {
-		if (gm != null) {
-			return gm.getPermissionHandler().has(player, perm);
-		} else if (permissions != null) {
+		if (permissions != null) {
 			return permissions.getHandler().has(player, perm);
 		} else {
 			return def;
