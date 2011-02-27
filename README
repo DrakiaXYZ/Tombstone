@@ -46,6 +46,8 @@ tombRemove - Whether or not to destroy a tombstone after a timeout
 =============
  Changes
 =============
+[Version 1.03]
+  - Core GM support removed, depends on FakePermissions if you use GM.
 [Version 1.02]
   - Permissions 2.0/2.1 support
   - GroupManager support
