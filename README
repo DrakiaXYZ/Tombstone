@@ -46,6 +46,9 @@ tombRemove - Whether or not to destroy a tombstone after a timeout
 =============
  Changes
 =============
+[Version 1.04]
+  - Small permissions handling update
+  - Inform player if we run into a casting problem.
 [Version 1.03]
   - Core GM support removed, depends on FakePermissions if you use GM.
 [Version 1.02]

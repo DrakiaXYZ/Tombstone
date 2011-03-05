@@ -11,6 +11,7 @@ import org.anjocaido.groupmanager.GroupManager;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
 import org.bukkit.block.Sign;
 import org.bukkit.craftbukkit.CraftWorld;
@@ -70,7 +71,7 @@ public class Tombstone extends JavaPlugin {
         
         if (setupPermissions()) {
         	if (permissions != null)
-        		log.info("[Tombstone] Loaded Permissions v" + permVersion + " for permissions");
+        		log.info("[Tombstone] Using Permissions " + permVersion + " (" + Permissions.version + ") for permissions");
         } else {
         	log.info("[Tombstone] No permissions plugin found, using default permission settings");
         }
@@ -176,10 +177,11 @@ public class Tombstone extends JavaPlugin {
 			}
 			permissions = (Permissions)perm;
 			try {
-				permVersion = Double.parseDouble(Permissions.version);
+				String[] permParts = Permissions.version.split("\\.");
+				permVersion = Double.parseDouble(permParts[0] + "." + permParts[1]);
 			} catch (Exception e) {
 				log.info("Could not determine Permissions version: " + Permissions.version);
-				return false;
+				return true;
 			}
 			return true;
 		}
@@ -301,8 +303,9 @@ public class Tombstone extends JavaPlugin {
         			block.getType() == Material.WOOD_PLATE ||
         			block.getType() == Material.REDSTONE_TORCH_ON ||
         			block.getType() == Material.REDSTONE_TORCH_OFF ||
-        			block.getType() == Material.CAKE_BLOCK) 
-        		block = p.getWorld().getBlockAt(loc.getBlockX(), loc.getBlockY() + 1, loc.getBlockZ()); 
+        			block.getType() == Material.CAKE_BLOCK) {
+        		block = p.getWorld().getBlockAt(loc.getBlockX(), loc.getBlockY() + 1, loc.getBlockZ());
+        	}
 
 			// Check if the player has a chest.
 			if (!p.getInventory().contains(Material.CHEST) && !hasPerm(p, "tombstone.freechest", false)) {
@@ -321,7 +324,13 @@ public class Tombstone extends JavaPlugin {
 			
 			// Set the current block to a chest, init some variables for later use.
 			block.setType(Material.CHEST);
-			Chest sChest = (Chest)block.getState();
+			// We're running into issues with 1.3 where we can't cast to a Chest :(
+			BlockState state = block.getState();
+			if (!(state instanceof Chest)) {
+				p.sendMessage("[Tombstone] Could not access chest. Inventory dropped.");
+				return;
+			}
+			Chest sChest = (Chest)state;
 			Chest lChest = null;
 			int slot = 0;
 			int maxSlot = sChest.getInventory().getSize();
