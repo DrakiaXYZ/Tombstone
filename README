@@ -46,6 +46,11 @@ tombRemove - Whether or not to destroy a tombstone after a timeout
 =============
  Changes
 =============
+[Version 1.06]
+  - The change to stop duping screwed up my plugin. Fixed.
+  - Sadly, armor is now no longer retrieved first, and I can't fix it.
+[Version 1.05]
+  - Recompiled against latest RB to fix ItemStack.equals
 [Version 1.04]
   - Small permissions handling update
   - Inform player if we run into a casting problem.

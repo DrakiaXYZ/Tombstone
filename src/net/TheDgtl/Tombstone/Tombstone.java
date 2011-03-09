@@ -3,11 +3,9 @@ package net.TheDgtl.Tombstone;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Iterator;
-import java.util.ListIterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Logger;
 
-import org.anjocaido.groupmanager.GroupManager;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -308,7 +306,14 @@ public class Tombstone extends JavaPlugin {
         	}
 
 			// Check if the player has a chest.
-			if (!p.getInventory().contains(Material.CHEST) && !hasPerm(p, "tombstone.freechest", false)) {
+        	int pChestCount = 0;
+        	int pSignCount = 0;
+    		for (ItemStack item : event.getDrops()) {
+    			if (item.getTypeId() == Material.CHEST.getId()) pChestCount += item.getAmount();
+    			if (item.getTypeId() == Material.SIGN.getId()) pSignCount += item.getAmount();
+    		}
+    		
+			if (pChestCount == 0 && !hasPerm(p, "tombstone.freechest", false)) {
 				p.sendMessage("[Tombstone] No chest found in inventory. Inventory dropped");
 				return;
 			}
@@ -336,39 +341,30 @@ public class Tombstone extends JavaPlugin {
 			int maxSlot = sChest.getInventory().getSize();
 
 			// Check if they need a large chest.
+			boolean largeChest = false;
 			if (event.getDrops().size() > maxSlot) {
 				// If they are allowed spawn a large chest to catch their entire inventory.
-				if (hasPerm(p, "tombstone.large", false) && !hasPerm(p, "tombstone.freechest", false)) {
+				if (hasPerm(p, "tombstone.large", false)) {
 					removeChestCount = 2;
-					// Check if the player has two chests. No easy way to do it.
-					int chestCount = 0;
-					for (ItemStack i : p.getInventory().getContents()) {
-						if (i.getType() == Material.CHEST) chestCount += i.getAmount();
-						if (chestCount >= removeChestCount) break;
-					}
-					if (chestCount >= removeChestCount) {
+					// Check if the player gets free chests
+					if (hasPerm(p, "tombstone.freechest", false))
+						removeChestCount = 0;
+					
+					// Check if the player has enough chests
+					if (pChestCount >= removeChestCount) {
 						Block lBlock = findLarge(block);
 						if (lBlock != null) {
 							lBlock.setType(Material.CHEST);
 							lChest = (Chest)lBlock.getState();
 							maxSlot = maxSlot * 2;
-						} else {
-							removeChestCount = 1;
+							largeChest = true;
 						}
-					} else {
-						removeChestCount = 1;
-					}
-				}
-				// tombstone.freechest + tombstone.large then just place a large chest.
-				if (hasPerm(p, "tombstone.freechest", false) && hasPerm(p, "tombstone.large", false)) {
-					Block lBlock = findLarge(block);
-					if (lBlock != null) {
-						lBlock.setType(Material.CHEST);
-						lChest = (Chest)lBlock.getState();
-						maxSlot = maxSlot * 2;
 					}
 				}
 			}
+			
+			if (!largeChest) removeChestCount = 1;
+			
 			// Don't remove any chests if they get a free one.
 			if (hasPerm(p, "tombstone.freechest", false))
 				removeChestCount = 0;
@@ -376,7 +372,7 @@ public class Tombstone extends JavaPlugin {
 			// Check if we have signs enabled, if the player can use signs, and if the player has a sign or gets a free sign
 			Block sBlock = null;
 			if (tombSign && hasPerm(p, "tombstone.sign", true) && 
-					(p.getInventory().contains(Material.SIGN) || hasPerm(p, "tombstone.freesign", false)) ) {
+				(pSignCount > 0 || hasPerm(p, "tombstone.freesign", false))) {
 				// Find a place to put the sign, then place the sign.
 				sBlock = sChest.getWorld().getBlockAt(sChest.getX(), sChest.getY() + 1, sChest.getZ());
 				if (canReplace(sBlock.getType())) {
@@ -405,21 +401,6 @@ public class Tombstone extends JavaPlugin {
 			
 			// Add tombstone to list
 			tombList.offer(tBlock);
-			
-			// First get players armor, tends to be more important.
-			if (p.getInventory().getArmorContents().length > 0) {
-				for (ItemStack i : p.getInventory().getArmorContents()) {
-					for (ListIterator<ItemStack> iter = event.getDrops().listIterator(event.getDrops().size()); iter.hasPrevious();) {
-						ItemStack j = iter.previous();
-						if (j.equals(i)) {
-							sChest.getInventory().setItem(slot, j);
-							iter.remove();
-							slot++;
-							break;
-						}
-					}
-				}
-			}
 			
 			// Next get the players inventory using the getDrops() method.
 			for (Iterator<ItemStack> iter = event.getDrops().listIterator(); iter.hasNext();) {
@@ -464,9 +445,9 @@ public class Tombstone extends JavaPlugin {
 			}
 			
 			// Tell the player how many items went into chest.
-			String msg = "Inventory stored in chest.";
+			String msg = "Inventory stored in chest. ";
 			if (event.getDrops().size() > 0)
-				msg +=  event.getDrops().size() + " items wouldn't fit in chest.";
+				msg += event.getDrops().size() + " items wouldn't fit in chest.";
 			p.sendMessage("[Tombstone] " + msg);
 			if (prot)
 				p.sendMessage("[Tombstone] Chest protected with LWC. " + lwcTime + "s before chest is unprotected.");
