@@ -46,6 +46,9 @@ tombRemove - Whether or not to destroy a tombstone after a timeout
 =============
  Changes
 =============
+[Version 1.07]
+  - Fixed a bug in which protected chests could be destroyed.
+  - Messages to players can be turned off.
 [Version 1.06]
   - The change to stop duping screwed up my plugin. Fixed.
   - Sadly, armor is now no longer retrieved first, and I can't fix it.

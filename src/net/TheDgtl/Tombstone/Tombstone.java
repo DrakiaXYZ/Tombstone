@@ -53,7 +53,8 @@ public class Tombstone extends JavaPlugin {
 	private boolean lwcEnable = true;
 	private boolean lwcRemove = false;
 	private boolean tombRemove = false;
-	private Boolean tombSign = true;
+	private boolean tombSign = true;
+	private boolean pMessage = true;
 	
 	public void onEnable() {
 		PluginDescriptionFile pdfFile = getDescription();
@@ -88,6 +89,7 @@ public class Tombstone extends JavaPlugin {
         tombSign = config.getBoolean("tombSign", tombSign);
         removeTime = config.getInt("removeTime", removeTime);
         tombRemove = config.getBoolean("tombRemove", tombRemove);
+        pMessage = config.getBoolean("playermessage", pMessage);
         saveConfig();
     }
 	
@@ -98,6 +100,7 @@ public class Tombstone extends JavaPlugin {
         config.setProperty("tombSign", tombSign);
         config.setProperty("removeTime", removeTime);
         config.setProperty("tombRemove", tombRemove);
+        config.setProperty("playermessage", pMessage);
         config.save();
 	}
 	
@@ -197,6 +200,11 @@ public class Tombstone extends JavaPlugin {
 			return def;
 		}
 	}
+	
+    public void sendMessage(Player p, String msg) {
+    	if (!pMessage) return;
+    	p.sendMessage("[Tombstone] " + msg);
+    }
     
     private class bListener extends BlockListener {
     	@Override
@@ -207,23 +215,20 @@ public class Tombstone extends JavaPlugin {
     		// Loop through tombstones looking to see if this is part of one.
 			for (Iterator<TombBlock> iter = tombList.iterator(); iter.hasNext();) {
 				TombBlock tBlock = iter.next();
-				if (tBlock.getBlock() != null && b.getLocation().equals(tBlock.getBlock().getLocation())) {
-					if (tBlock.getLwcEnabled())
-						deactivateLWC(tBlock);
+				if ( (tBlock.getBlock() != null && b.getLocation().equals(tBlock.getBlock().getLocation())) || 
+				     (tBlock.getLBlock() != null && b.getLocation().equals(tBlock.getLBlock().getLocation())) ||
+				     (tBlock.getSign() != null && b.getLocation().equals(tBlock.getSign().getLocation())) ) {
+					// Check if this block belongs to the player before destroying it
+					if (tBlock.getLwcEnabled()) {
+						if (tBlock.getOwner().equals(event.getPlayer())) {
+							deactivateLWC(tBlock);
+						} else {
+							event.setCancelled(true);
+							return;
+						}
+					}
 					iter.remove();
-					break;
-				}
-				if (tBlock.getLBlock() != null && b.getLocation().equals(tBlock.getLBlock().getLocation())) {
-					if (tBlock.getLwcEnabled())
-						deactivateLWC(tBlock);
-					iter.remove();
-					break;
-				}
-				if (tBlock.getSign() != null && b.getLocation().equals(tBlock.getSign().getLocation())) {
-					if (tBlock.getLwcEnabled())
-						deactivateLWC(tBlock);
-					iter.remove();
-					break;
+					return;
 				}
 			}
     	}
@@ -268,7 +273,7 @@ public class Tombstone extends JavaPlugin {
 					iter.remove();
 					// Manually update inventory for the time being.
 					event.getPlayer().updateInventory();
-					event.getPlayer().sendMessage("[Tombstone] Tombstone quicklooted!");
+					sendMessage(event.getPlayer(), "Tombstone quicklooted!");
 					break;
 				}
 			}
@@ -284,7 +289,7 @@ public class Tombstone extends JavaPlugin {
         	
         	if (!hasPerm(p, "tombstone.use", true)) return;
         	if (event.getDrops().size() == 0) {
-        		p.sendMessage("[Tombstone] Inventory Empty.");
+        		sendMessage(p, "Inventory Empty.");
         		return;
         	}
         	
@@ -314,13 +319,13 @@ public class Tombstone extends JavaPlugin {
     		}
     		
 			if (pChestCount == 0 && !hasPerm(p, "tombstone.freechest", false)) {
-				p.sendMessage("[Tombstone] No chest found in inventory. Inventory dropped");
+				sendMessage(p, "No chest found in inventory. Inventory dropped");
 				return;
 			}
         	
         	// Check if we can replace the block.
 			if ( !canReplace(block.getType()) ) {
-				p.sendMessage("[Tombstone] Could not find room for chest. Inventory dropped");
+				sendMessage(p, "Could not find room for chest. Inventory dropped");
 				return;
 			}
         	
@@ -332,7 +337,7 @@ public class Tombstone extends JavaPlugin {
 			// We're running into issues with 1.3 where we can't cast to a Chest :(
 			BlockState state = block.getState();
 			if (!(state instanceof Chest)) {
-				p.sendMessage("[Tombstone] Could not access chest. Inventory dropped.");
+				sendMessage(p, "Could not access chest. Inventory dropped.");
 				return;
 			}
 			Chest sChest = (Chest)state;
@@ -448,11 +453,11 @@ public class Tombstone extends JavaPlugin {
 			String msg = "Inventory stored in chest. ";
 			if (event.getDrops().size() > 0)
 				msg += event.getDrops().size() + " items wouldn't fit in chest.";
-			p.sendMessage("[Tombstone] " + msg);
+			sendMessage(p, msg);
 			if (prot)
-				p.sendMessage("[Tombstone] Chest protected with LWC. " + lwcTime + "s before chest is unprotected.");
+				sendMessage(p, "Chest protected with LWC. " + lwcTime + "s before chest is unprotected.");
 			if (tombRemove)
-				p.sendMessage("[Tombstone] Chest will be automatically removed in " + removeTime + "s");
+				sendMessage(p, "Chest will be automatically removed in " + removeTime + "s");
         }
         
         private void createSign(Block signBlock, Player p) {
@@ -512,7 +517,7 @@ public class Tombstone extends JavaPlugin {
 						// Remove the protection on the block
 						deactivateLWC(tBlock);
 						tBlock.setLwcEnabled(false);
-						tBlock.getOwner().sendMessage("[Tombstone] LWC Protection disabled on your tombstone!");
+						sendMessage(tBlock.getOwner(), "LWC Protection disabled on your tombstone!");
 					}
 				}
 				
@@ -523,7 +528,7 @@ public class Tombstone extends JavaPlugin {
 					if (tBlock.getLBlock() != null)
 						tBlock.getLBlock().setType(Material.AIR);
 					iter.remove();
-					tBlock.getOwner().sendMessage("[Tombstone] Your tombstone has been destroyed!");
+					sendMessage(tBlock.getOwner(), "Your tombstone has been destroyed!");
 				}
 			}
 		}
