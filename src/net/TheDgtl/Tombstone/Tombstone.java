@@ -83,6 +83,8 @@ public class Tombstone extends JavaPlugin {
 	private boolean tombSign = true;
 	private boolean pMessage = true;
 	private boolean saveTombList = true;
+	private boolean destroyQuickLoot = false;
+	private boolean noDestroy = false;
 	
 	public void onEnable() {
 		PluginDescriptionFile pdfFile = getDescription();
@@ -124,6 +126,9 @@ public class Tombstone extends JavaPlugin {
         tombRemove = config.getBoolean("tombRemove", tombRemove);
         pMessage = config.getBoolean("playerMessage", pMessage);
         saveTombList = config.getBoolean("saveTombList", saveTombList);
+        destroyQuickLoot = config.getBoolean("destroyQuickLoot", destroyQuickLoot);
+        noDestroy = config.getBoolean("noDestroy", noDestroy);
+
         saveConfig();
     }
 	
@@ -137,6 +142,8 @@ public class Tombstone extends JavaPlugin {
         config.setProperty("tombRemove", tombRemove);
         config.setProperty("playerMessage", pMessage);
         config.setProperty("saveTombList", saveTombList);
+        config.setProperty("destroyQuickLoot", destroyQuickLoot);
+        config.setProperty("noDestroy", noDestroy);
         config.save();
 	}
 	
@@ -332,6 +339,12 @@ public class Tombstone extends JavaPlugin {
 
     		TombBlock tBlock = tombBlockList.get(b.getLocation());
     		if (tBlock == null) return;
+    		
+    		if (noDestroy) {
+    			sendMessage(event.getPlayer(), "Tombstone unable to be destroyed");
+    			event.setCancelled(true);
+    			return;
+    		}
 
 			if (tBlock.getLwcEnabled()) {
 				if (tBlock.getOwner().equals(event.getPlayer())) {
@@ -367,11 +380,15 @@ public class Tombstone extends JavaPlugin {
 			Chest lChest = (tBlock.getLBlock() != null) ? (Chest)tBlock.getLBlock().getState() : null;
 			
 			ItemStack[] items = sChest.getInventory().getContents();
+			boolean overflow = false;
 			for (int cSlot = 0; cSlot < items.length; cSlot++) {
 				ItemStack item = items[cSlot];
 				if (item.getType() == Material.AIR) continue;
 				int slot = event.getPlayer().getInventory().firstEmpty();
-				if (slot == -1) break;
+				if (slot == -1) {
+					overflow = true;
+					break;
+				}
 				event.getPlayer().getInventory().setItem(slot, item);
 				sChest.getInventory().clear(cSlot);
 			}
@@ -381,21 +398,32 @@ public class Tombstone extends JavaPlugin {
 					ItemStack item = items[cSlot];
 					if (item.getType() == Material.AIR) continue;
 					int slot = event.getPlayer().getInventory().firstEmpty();
-					if (slot == -1) break;
+					if (slot == -1) {
+						overflow = true;
+						break;
+					}
 					event.getPlayer().getInventory().setItem(slot, item);
 					lChest.getInventory().clear(cSlot);
 				}
 			}
 			
-			// Deactivate LWC
-			deactivateLWC(tBlock, true);
-			// Remove from tombList
-			tombList.remove(tBlock);
-			// Remove this tombstone from the tombBlockList
-			tombBlockList.remove(tBlock.getBlock().getLocation());
-			if (tBlock.getLBlock() != null) tombBlockList.remove(tBlock.getLBlock().getLocation());
-			if (tBlock.getSign() != null) tombBlockList.remove(tBlock.getSign().getLocation());
-			saveTombList(b.getWorld().getName());
+			if (!overflow) {
+				// Deactivate LWC
+				deactivateLWC(tBlock, true);
+				// Remove from tombList
+				tombList.remove(tBlock);
+				// Remove this tombstone from the tombBlockList
+				tombBlockList.remove(tBlock.getBlock().getLocation());
+				if (tBlock.getLBlock() != null) tombBlockList.remove(tBlock.getLBlock().getLocation());
+				if (tBlock.getSign() != null) tombBlockList.remove(tBlock.getSign().getLocation());
+				saveTombList(b.getWorld().getName());
+				
+				if (destroyQuickLoot) {
+					if (tBlock.getSign() != null) tBlock.getSign().setType(Material.AIR);
+					tBlock.getBlock().setType(Material.AIR);
+					if (tBlock.getLBlock() != null) tBlock.getLBlock().setType(Material.AIR);
+				}
+			}
 			
 			// Manually update inventory for the time being.
 			event.getPlayer().updateInventory();

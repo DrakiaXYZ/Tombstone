@@ -38,16 +38,24 @@ tombstone.quickloot - Whether to allow a player/group to quickloot by right clic
 =============
 lwcEnable - Whether to use LWC if available 
 lwcRemove - Whether to remove LWC after a specific timeout
+lwcPublic - Set to true to set LWC protection to Public instead or removing
 lwcTimeout - How long to wait before disabling LWC on a tombstone
 tombSign - Whether to place a sign on the tombstone
 removeTime - How long to wait before destroying a tombstone
 tombRemove - Whether or not to destroy a tombstone after a timeout
+playerMessage - Whether or not to show messages to the player
+saveTombList - Whether to save a list of tombstones between server reloads
+destroyQuickLoot - Set to true to destroy the chest/sign on quickloot
+noDestroy - Set to true to disallow any player from destroying a tombstone (Other than quickloot) 
 
 =============
  Changes
 =============
 [Version 1.08]
-  - 
+  - Configurable tombstone list storage
+  - Allow LWC to be set to Public instead of disabled
+  - Allow destroy on quickloot
+  - Allow tombstones to be "invincible" besides quickloot
 [Version 1.07]
   - Fixed a bug in which protected chests could be destroyed.
   - Messages to players can be turned off.
