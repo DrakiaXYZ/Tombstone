@@ -18,14 +18,21 @@ package net.TheDgtl.Tombstone;
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Scanner;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Logger;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
@@ -61,6 +68,7 @@ public class Tombstone extends JavaPlugin {
 	private double permVersion = 0;
 	private Plugin lwcPlugin = null;
 	private ConcurrentLinkedQueue<TombBlock> tombList = new ConcurrentLinkedQueue<TombBlock>();
+	private HashMap<Location, TombBlock> tombBlockList = new HashMap<Location, TombBlock>();
 	private Configuration config;
 	
 	/**
@@ -70,9 +78,11 @@ public class Tombstone extends JavaPlugin {
 	private int removeTime = 18000;
 	private boolean lwcEnable = true;
 	private boolean lwcRemove = false;
+	private boolean lwcPublic = false;
 	private boolean tombRemove = false;
 	private boolean tombSign = true;
 	private boolean pMessage = true;
+	private boolean saveTombList = true;
 	
 	public void onEnable() {
 		PluginDescriptionFile pdfFile = getDescription();
@@ -92,8 +102,12 @@ public class Tombstone extends JavaPlugin {
         } else {
         	log.info("[Tombstone] No permissions plugin found, using default permission settings");
         }
+        
         reloadConfig();
         checkLWC();
+        for (World w : getServer().getWorlds())
+        	loadTombList(w.getName());
+        
         // Start removal timer. Run every 30 seconds (20 ticks per second)
         if (lwcRemove || tombRemove)
         	getServer().getScheduler().scheduleSyncRepeatingTask(this, new TombThread(), 0L, 600L);
@@ -104,10 +118,12 @@ public class Tombstone extends JavaPlugin {
     	lwcEnable = config.getBoolean("lwcEnable", lwcEnable);
         lwcTime = config.getInt("lwcTimeout", lwcTime);
         lwcRemove = config.getBoolean("lwcRemove", lwcRemove);
+        lwcPublic = config.getBoolean("lwcPublic", lwcPublic);
         tombSign = config.getBoolean("tombSign", tombSign);
         removeTime = config.getInt("removeTime", removeTime);
         tombRemove = config.getBoolean("tombRemove", tombRemove);
-        pMessage = config.getBoolean("playermessage", pMessage);
+        pMessage = config.getBoolean("playerMessage", pMessage);
+        saveTombList = config.getBoolean("saveTombList", saveTombList);
         saveConfig();
     }
 	
@@ -115,25 +131,98 @@ public class Tombstone extends JavaPlugin {
 		config.setProperty("lwcEnable", lwcEnable);
 		config.setProperty("lwcTimeout", lwcTime);
         config.setProperty("lwcRemove", lwcRemove);
+        config.setProperty("lwcPublic", lwcPublic);
         config.setProperty("tombSign", tombSign);
         config.setProperty("removeTime", removeTime);
         config.setProperty("tombRemove", tombRemove);
-        config.setProperty("playermessage", pMessage);
+        config.setProperty("playerMessage", pMessage);
+        config.setProperty("saveTombList", saveTombList);
         config.save();
 	}
 	
-	public void onDisable() {
-		// Clear the LWC protection from any tombstones.
-		if (lwcPlugin != null) {
-			while (!tombList.isEmpty()) {
-				TombBlock block = tombList.poll();
-				if (block == null) break;
-				
-				// Remove the protection on the block.
-				if (!block.getLwcEnabled()) continue;
-				deactivateLWC(block);
+	public void loadTombList(String world) {
+		if (!saveTombList) return;
+		try {
+			File fh = new File(this.getDataFolder().getPath(), "tombList-" + world + ".db");
+			if (!fh.exists()) return;
+			Scanner scanner = new Scanner(fh);
+			while (scanner.hasNextLine()) {
+				String line = scanner.nextLine().trim();
+				String[] split = line.split(":");
+				//block:lblock:sign:time:name:lwc
+				Block block = readBlock(split[0]);
+				Block lBlock = readBlock(split[1]);
+				Block sign = readBlock(split[2]);
+				Player owner = getServer().getPlayer(split[3]);
+				long time = Long.valueOf(split[4]);
+				boolean lwc = Boolean.valueOf(split[5]);
+				if (block == null || owner == null) {
+					log.info("[Tombstone] Invalid tombstone in database " + fh.getName());
+					continue;
+				}
+				TombBlock tBlock = new TombBlock(block, lBlock, sign, owner, time, lwc);
+				tombList.offer(tBlock);
+				// Used for quick tombStone lookup
+				tombBlockList.put(block.getLocation(), tBlock);
+				if (lBlock != null) tombBlockList.put(lBlock.getLocation(), tBlock);
+				if (sign != null) tombBlockList.put(sign.getLocation(), tBlock);
 			}
+			scanner.close();
+		} catch (IOException e) {
+			Tombstone.log.info("[Tombstone] Error loading tombstone list: " + e);
 		}
+	}
+	
+	public void saveTombList(String world) {
+		if (!saveTombList) return;
+		try {
+			File fh = new File(this.getDataFolder().getPath(), "tombList-" + world + ".db");
+			BufferedWriter bw = new BufferedWriter(new FileWriter(fh));
+			for (Iterator<TombBlock> iter = tombList.iterator(); iter.hasNext();) {
+				TombBlock tBlock = iter.next();
+				// Skip not this world
+				if (!tBlock.getBlock().getWorld().getName().equalsIgnoreCase(world)) continue;
+				
+				StringBuilder builder = new StringBuilder();
+				
+				bw.append(printBlock(tBlock.getBlock()));
+				bw.append(":");
+				bw.append(printBlock(tBlock.getLBlock()));
+				bw.append(":");
+				bw.append(printBlock(tBlock.getSign()));
+				bw.append(":");
+				bw.append(tBlock.getOwner().getName());
+				bw.append(":");
+				bw.append(String.valueOf(tBlock.getTime()));
+				bw.append(":");
+				bw.append(String.valueOf(tBlock.getLwcEnabled()));
+				
+				bw.append(builder.toString());
+				bw.newLine();
+			}
+			bw.close();
+		} catch (IOException e) {
+			Tombstone.log.info("[Tombstone] Error saving tombstone list: " + e);
+		}
+	}
+	
+	private String printBlock(Block b) {
+		if (b == null) return "";
+		return b.getWorld().getName() + "," + b.getX() + "," + b.getY() + "," + b.getZ();
+	}
+	
+	private Block readBlock(String b) {
+		if (b.length() == 0) return null;
+		String[] split = b.split(",");
+		//world,x,y,z
+		World world = getServer().getWorld(split[0]);
+		if (world == null) return null;
+		return world.getBlockAt(Integer.valueOf(split[1]), Integer.valueOf(split[2]), Integer.valueOf(split[3]));
+	}
+	
+	public void onDisable() {
+        for (World w : getServer().getWorlds())
+        	saveTombList(w.getName());
 	}
 	
 	private void checkLWC() {
@@ -146,6 +235,7 @@ public class Tombstone extends JavaPlugin {
 	}
 	
 	private Boolean activateLWC(Player player, TombBlock tBlock) {
+		if (!lwcEnable) return false;
 		if (lwcPlugin == null) return false;
 		LWC lwc = ((LWCPlugin)lwcPlugin).getLWC();
 		
@@ -155,10 +245,13 @@ public class Tombstone extends JavaPlugin {
 		lwc.getPhysicalDatabase().registerProtectedEntity(block.getTypeId(), ProtectionTypes.PRIVATE, player.getName(), "", block.getX(), block.getY(), block.getZ());
 		if (sign != null)
 			lwc.getPhysicalDatabase().registerProtectedEntity(sign.getTypeId(), ProtectionTypes.PRIVATE, player.getName(), "", sign.getX(), sign.getY(), sign.getZ());
+		
+		tBlock.setLwcEnabled(true);
 		return true;
 	}
 	
-	private void deactivateLWC(TombBlock tBlock) {
+	private void deactivateLWC(TombBlock tBlock, boolean force) {
+		if (!lwcEnable) return;
 		if (lwcPlugin == null) return;
 		LWC lwc = ((LWCPlugin)lwcPlugin).getLWC();
 		
@@ -168,6 +261,9 @@ public class Tombstone extends JavaPlugin {
 		if (protection != null) {
 			lwc.getPhysicalDatabase().unregisterProtectedEntity(protection.getX(), protection.getY(), protection.getZ());
 			lwc.getPhysicalDatabase().unregisterProtectionRights(protection.getId());
+			//Set to public instead of removing completely
+			if (lwcPublic && !force)
+				lwc.getPhysicalDatabase().registerProtectedEntity(_block.getTypeId(), ProtectionTypes.PUBLIC, tBlock.getOwner().getName(), "", _block.getX(), _block.getY(), _block.getZ());
 		}
 		
 		// Remove the protection on the sign
@@ -177,8 +273,12 @@ public class Tombstone extends JavaPlugin {
 			if (protection != null) {
 				lwc.getPhysicalDatabase().unregisterProtectedEntity(protection.getX(), protection.getY(), protection.getZ());
 				lwc.getPhysicalDatabase().unregisterProtectionRights(protection.getId());
+				// Set to public instead of removing completely
+				if (lwcPublic && !force)
+					lwc.getPhysicalDatabase().registerProtectedEntity(_block.getTypeId(), ProtectionTypes.PUBLIC, tBlock.getOwner().getName(), "", _block.getX(), _block.getY(), _block.getZ());
 			}
 		}
+		tBlock.setLwcEnabled(false);
 	}
 	
 	/*
@@ -229,26 +329,25 @@ public class Tombstone extends JavaPlugin {
     	public void onBlockBreak(BlockBreakEvent event) {
     		Block b = event.getBlock();
     		if (b.getType() != Material.CHEST && b.getType() != Material.SIGN_POST) return;
-    		
-    		// Loop through tombstones looking to see if this is part of one.
-			for (Iterator<TombBlock> iter = tombList.iterator(); iter.hasNext();) {
-				TombBlock tBlock = iter.next();
-				if ( (tBlock.getBlock() != null && b.getLocation().equals(tBlock.getBlock().getLocation())) || 
-				     (tBlock.getLBlock() != null && b.getLocation().equals(tBlock.getLBlock().getLocation())) ||
-				     (tBlock.getSign() != null && b.getLocation().equals(tBlock.getSign().getLocation())) ) {
-					// Check if this block belongs to the player before destroying it
-					if (tBlock.getLwcEnabled()) {
-						if (tBlock.getOwner().equals(event.getPlayer())) {
-							deactivateLWC(tBlock);
-						} else {
-							event.setCancelled(true);
-							return;
-						}
-					}
-					iter.remove();
+
+    		TombBlock tBlock = tombBlockList.get(b.getLocation());
+    		if (tBlock == null) return;
+
+			if (tBlock.getLwcEnabled()) {
+				if (tBlock.getOwner().equals(event.getPlayer())) {
+					deactivateLWC(tBlock, true);
+				} else {
+					event.setCancelled(true);
 					return;
 				}
 			}
+			// Remove this tombstone from the tombBlockList
+			tombBlockList.remove(tBlock.getBlock().getLocation());
+			if (tBlock.getLBlock() != null) tombBlockList.remove(tBlock.getLBlock().getLocation());
+			if (tBlock.getSign() != null) tombBlockList.remove(tBlock.getSign().getLocation());
+			// Remove this tombstone from tombList
+			tombList.remove(tBlock);
+			saveTombList(b.getWorld().getName());
     	}
     	
     	@Override
@@ -258,44 +357,50 @@ public class Tombstone extends JavaPlugin {
     		if (!hasPerm(event.getPlayer(), "tombstone.quickloot", true)) return;
     		
     		// Loop through tombstones looking to see if this is part of one.
-			for (Iterator<TombBlock> iter = tombList.iterator(); iter.hasNext();) {
-				TombBlock tBlock = iter.next();
-				// Check owner
-				if (!tBlock.getOwner().equals(event.getPlayer())) continue;
-				// Check location
-				if (b.getLocation().equals(tBlock.getSign().getLocation())) {
-					Chest sChest = (Chest)tBlock.getBlock().getState();
-					Chest lChest = (tBlock.getLBlock() != null) ? (Chest)tBlock.getLBlock().getState() : null;
-					
-					ItemStack[] items = sChest.getInventory().getContents();
-					for (int cSlot = 0; cSlot < items.length; cSlot++) {
-						ItemStack item = items[cSlot];
-						if (item.getType() == Material.AIR) continue;
-						int slot = event.getPlayer().getInventory().firstEmpty();
-						if (slot == -1) break;
-						event.getPlayer().getInventory().setItem(slot, item);
-						sChest.getInventory().clear(cSlot);
-					}
-					if (lChest != null) {
-						items = lChest.getInventory().getContents();
-						for (int cSlot = 0; cSlot < items.length; cSlot++) {
-							ItemStack item = items[cSlot];
-							if (item.getType() == Material.AIR) continue;
-							int slot = event.getPlayer().getInventory().firstEmpty();
-							if (slot == -1) break;
-							event.getPlayer().getInventory().setItem(slot, item);
-							lChest.getInventory().clear(cSlot);
-						}
-					}
-					deactivateLWC(tBlock);
-					iter.remove();
-					// Manually update inventory for the time being.
-					event.getPlayer().updateInventory();
-					sendMessage(event.getPlayer(), "Tombstone quicklooted!");
-					break;
+    		TombBlock tBlock = tombBlockList.get(b.getLocation());
+    		if (tBlock == null) return;
+    		
+			// Check owner
+			if (!tBlock.getOwner().equals(event.getPlayer())) return;
+			
+			Chest sChest = (Chest)tBlock.getBlock().getState();
+			Chest lChest = (tBlock.getLBlock() != null) ? (Chest)tBlock.getLBlock().getState() : null;
+			
+			ItemStack[] items = sChest.getInventory().getContents();
+			for (int cSlot = 0; cSlot < items.length; cSlot++) {
+				ItemStack item = items[cSlot];
+				if (item.getType() == Material.AIR) continue;
+				int slot = event.getPlayer().getInventory().firstEmpty();
+				if (slot == -1) break;
+				event.getPlayer().getInventory().setItem(slot, item);
+				sChest.getInventory().clear(cSlot);
+			}
+			if (lChest != null) {
+				items = lChest.getInventory().getContents();
+				for (int cSlot = 0; cSlot < items.length; cSlot++) {
+					ItemStack item = items[cSlot];
+					if (item.getType() == Material.AIR) continue;
+					int slot = event.getPlayer().getInventory().firstEmpty();
+					if (slot == -1) break;
+					event.getPlayer().getInventory().setItem(slot, item);
+					lChest.getInventory().clear(cSlot);
 				}
 			}
-    	}
+			
+			// Deactivate LWC
+			deactivateLWC(tBlock, true);
+			// Remove from tombList
+			tombList.remove(tBlock);
+			// Remove this tombstone from the tombBlockList
+			tombBlockList.remove(tBlock.getBlock().getLocation());
+			if (tBlock.getLBlock() != null) tombBlockList.remove(tBlock.getLBlock().getLocation());
+			if (tBlock.getSign() != null) tombBlockList.remove(tBlock.getSign().getLocation());
+			saveTombList(b.getWorld().getName());
+			
+			// Manually update inventory for the time being.
+			event.getPlayer().updateInventory();
+			sendMessage(event.getPlayer(), "Tombstone quicklooted!");
+		}
     }
 	
 	private class eListener extends EntityListener {
@@ -425,6 +530,13 @@ public class Tombstone extends JavaPlugin {
 			// Add tombstone to list
 			tombList.offer(tBlock);
 			
+			// Add tombstone blocks to tombBlockList
+			tombBlockList.put(tBlock.getBlock().getLocation(), tBlock);
+			if (tBlock.getLBlock() != null) tombBlockList.put(tBlock.getLBlock().getLocation(), tBlock);
+			if (tBlock.getSign() != null) tombBlockList.put(tBlock.getSign().getLocation(), tBlock);
+			
+			saveTombList(p.getWorld().getName());
+			
 			// Next get the players inventory using the getDrops() method.
 			for (Iterator<ItemStack> iter = event.getDrops().listIterator(); iter.hasNext();) {
 				ItemStack i = iter.next();
@@ -533,7 +645,7 @@ public class Tombstone extends JavaPlugin {
 				if (lwcRemove && tBlock.getLwcEnabled() && lwcPlugin != null) {
 					if (cTime > (tBlock.getTime() + lwcTime)) {
 						// Remove the protection on the block
-						deactivateLWC(tBlock);
+						deactivateLWC(tBlock, false);
 						tBlock.setLwcEnabled(false);
 						sendMessage(tBlock.getOwner(), "LWC Protection disabled on your tombstone!");
 					}
@@ -542,10 +654,22 @@ public class Tombstone extends JavaPlugin {
 				// Remove block, drop items on ground (One last free-for-all)
 				if (tombRemove && cTime > (tBlock.getTime() + removeTime)) {
 					tBlock.getBlock().getWorld().loadChunk(tBlock.getBlock().getChunk());
+					if (tBlock.getLwcEnabled()) {
+						deactivateLWC(tBlock, true);
+					}
 					tBlock.getBlock().setType(Material.AIR);
 					if (tBlock.getLBlock() != null)
 						tBlock.getLBlock().setType(Material.AIR);
+					
+					// Remove from tombList
 					iter.remove();
+					
+					// Remove this tombstone from the tombBlockList
+					tombBlockList.remove(tBlock.getBlock().getLocation());
+					if (tBlock.getLBlock() != null) tombBlockList.remove(tBlock.getLBlock().getLocation());
+					if (tBlock.getSign() != null) tombBlockList.remove(tBlock.getSign().getLocation());
+					
+					saveTombList(tBlock.getBlock().getWorld().getName());
 					sendMessage(tBlock.getOwner(), "Your tombstone has been destroyed!");
 				}
 			}
@@ -565,6 +689,14 @@ public class Tombstone extends JavaPlugin {
 			this.sign = sign;
 			this.owner = owner;
 			this.time = time;
+		}
+		TombBlock(Block block, Block lBlock, Block sign, Player owner, long time, boolean lwc) {
+			this.block = block;
+			this.lBlock = lBlock;
+			this.sign = sign;
+			this.owner = owner;
+			this.time = time;
+			this.lwcEnabled = lwc;
 		}
 		long getTime() {
 			return time;

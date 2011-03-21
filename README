@@ -46,6 +46,8 @@ tombRemove - Whether or not to destroy a tombstone after a timeout
 =============
  Changes
 =============
+[Version 1.08]
+  - 
 [Version 1.07]
   - Fixed a bug in which protected chests could be destroyed.
   - Messages to players can be turned off.
