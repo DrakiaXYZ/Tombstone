@@ -51,6 +51,9 @@ noDestroy - Set to true to disallow any player from destroying a tombstone (Othe
 =============
  Changes
 =============
+[Version 1.09]
+  - Changed how I do sign updating
+  - Split into LWC1/LWC2 versions.
 [Version 1.08]
   - Configurable tombstone list storage
   - Allow LWC to be set to Public instead of disabled

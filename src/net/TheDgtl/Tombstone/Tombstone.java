@@ -70,6 +70,7 @@ public class Tombstone extends JavaPlugin {
 	private ConcurrentLinkedQueue<TombBlock> tombList = new ConcurrentLinkedQueue<TombBlock>();
 	private HashMap<Location, TombBlock> tombBlockList = new HashMap<Location, TombBlock>();
 	private Configuration config;
+	private Tombstone plugin = this;
 	
 	/**
 	 * Configuration options - Defaults
@@ -249,9 +250,9 @@ public class Tombstone extends JavaPlugin {
 		// Register the chest + sign as private
 		Block block = tBlock.getBlock();
 		Block sign = tBlock.getSign();
-		lwc.getPhysicalDatabase().registerProtectedEntity(block.getTypeId(), ProtectionTypes.PRIVATE, player.getName(), "", block.getX(), block.getY(), block.getZ());
+		lwc.getPhysicalDatabase().registerProtection(block.getTypeId(), ProtectionTypes.PRIVATE, block.getWorld().getName(), player.getName(), "", block.getX(), block.getY(), block.getZ());
 		if (sign != null)
-			lwc.getPhysicalDatabase().registerProtectedEntity(sign.getTypeId(), ProtectionTypes.PRIVATE, player.getName(), "", sign.getX(), sign.getY(), sign.getZ());
+			lwc.getPhysicalDatabase().registerProtection(sign.getTypeId(), ProtectionTypes.PRIVATE, block.getWorld().getName(), player.getName(), "", sign.getX(), sign.getY(), sign.getZ());
 		
 		tBlock.setLwcEnabled(true);
 		return true;
@@ -264,25 +265,23 @@ public class Tombstone extends JavaPlugin {
 		
 		// Remove the protection on the chest
 		Block _block = tBlock.getBlock();
-		Protection protection = lwc.getPhysicalDatabase().loadProtectedEntity(_block.getX(), _block.getY(), _block.getZ());
+		Protection protection = lwc.findProtection(_block);
 		if (protection != null) {
-			lwc.getPhysicalDatabase().unregisterProtectedEntity(protection.getX(), protection.getY(), protection.getZ());
-			lwc.getPhysicalDatabase().unregisterProtectionRights(protection.getId());
+			lwc.getPhysicalDatabase().unregisterProtection(protection.getId());
 			//Set to public instead of removing completely
 			if (lwcPublic && !force)
-				lwc.getPhysicalDatabase().registerProtectedEntity(_block.getTypeId(), ProtectionTypes.PUBLIC, tBlock.getOwner().getName(), "", _block.getX(), _block.getY(), _block.getZ());
+				lwc.getPhysicalDatabase().registerProtection(_block.getTypeId(), ProtectionTypes.PUBLIC, _block.getWorld().getName(), tBlock.getOwner().getName(), "", _block.getX(), _block.getY(), _block.getZ());
 		}
 		
 		// Remove the protection on the sign
 		_block = tBlock.getSign();
 		if (_block != null) {
-			protection = lwc.getPhysicalDatabase().loadProtectedEntity(_block.getX(), _block.getY(), _block.getZ());
+			protection = lwc.findProtection(_block);
 			if (protection != null) {
-				lwc.getPhysicalDatabase().unregisterProtectedEntity(protection.getX(), protection.getY(), protection.getZ());
-				lwc.getPhysicalDatabase().unregisterProtectionRights(protection.getId());
+				lwc.getPhysicalDatabase().unregisterProtection(protection.getId());
 				// Set to public instead of removing completely
 				if (lwcPublic && !force)
-					lwc.getPhysicalDatabase().registerProtectedEntity(_block.getTypeId(), ProtectionTypes.PUBLIC, tBlock.getOwner().getName(), "", _block.getX(), _block.getY(), _block.getZ());
+					lwc.getPhysicalDatabase().registerProtection(_block.getTypeId(), ProtectionTypes.PUBLIC, _block.getWorld().getName(), tBlock.getOwner().getName(), "", _block.getX(), _block.getY(), _block.getZ());
 			}
 		}
 		tBlock.setLwcEnabled(false);
@@ -618,18 +617,20 @@ public class Tombstone extends JavaPlugin {
 				sendMessage(p, "Chest will be automatically removed in " + removeTime + "s");
         }
         
-        private void createSign(Block signBlock, Player p) {
+        private void createSign(Block signBlock, final Player p) {
+        	final String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+        	final String time = new SimpleDateFormat("hh:mm a").format(new Date());
         	signBlock.setType(Material.SIGN_POST);
-        	Sign sign = (Sign)signBlock.getState();
-        	sign.setLine(0, p.getName());
-        	sign.setLine(1, "RIP");
-        	String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
-        	String time = new SimpleDateFormat("hh:mm a").format(new Date());
-        	sign.setLine(2, date);
-        	sign.setLine(3, time);
-        	sign.update();
-        	// Manual sign update since update() doesn't work properly
-        	((CraftWorld)signBlock.getWorld()).getHandle().g(signBlock.getX(), signBlock.getY(), signBlock.getZ());
+        	final Sign sign = (Sign)signBlock.getState();
+			getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
+				public void run() {
+		        	sign.setLine(0, p.getName());
+		        	sign.setLine(1, "RIP");
+		        	sign.setLine(2, date);
+		        	sign.setLine(3, time);
+		        	sign.update();
+				}
+			});
         }
         
         Block findLarge(Block base) {
