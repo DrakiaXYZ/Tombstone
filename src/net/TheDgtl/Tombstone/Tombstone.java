@@ -37,7 +37,6 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
 import org.bukkit.block.Sign;
-import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.Event.Priority;
@@ -46,6 +45,8 @@ import org.bukkit.event.block.BlockListener;
 import org.bukkit.event.block.BlockRightClickEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityListener;
+import org.bukkit.event.server.PluginEvent;
+import org.bukkit.event.server.ServerListener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginDescriptionFile;
@@ -62,11 +63,13 @@ import com.nijikokun.bukkit.Permissions.Permissions;
 public class Tombstone extends JavaPlugin {
 	private final eListener entityListener = new eListener();
 	private final bListener blockListener = new bListener();
+	private final sListener serverListener = new sListener();
 	public static Logger log;
 	PluginManager pm;
+	
 	private Permissions permissions = null;
-	private double permVersion = 0;
-	private Plugin lwcPlugin = null;
+	private LWCPlugin lwcPlugin = null;
+	
 	private ConcurrentLinkedQueue<TombBlock> tombList = new ConcurrentLinkedQueue<TombBlock>();
 	private HashMap<Location, TombBlock> tombBlockList = new HashMap<Location, TombBlock>();
 	private Configuration config;
@@ -98,16 +101,13 @@ public class Tombstone extends JavaPlugin {
         pm.registerEvent(Event.Type.ENTITY_DEATH, entityListener, Priority.Normal, this);
         pm.registerEvent(Event.Type.BLOCK_BREAK, blockListener, Priority.Normal, this);
         pm.registerEvent(Event.Type.BLOCK_RIGHTCLICKED, blockListener, Priority.Normal, this);
+        pm.registerEvent(Event.Type.PLUGIN_ENABLE, serverListener, Priority.Monitor, this);
+		pm.registerEvent(Event.Type.PLUGIN_DISABLE, serverListener, Priority.Monitor, this);
         
-        if (setupPermissions()) {
-        	if (permissions != null)
-        		log.info("[Tombstone] Using Permissions " + permVersion + " (" + Permissions.version + ") for permissions");
-        } else {
-        	log.info("[Tombstone] No permissions plugin found, using default permission settings");
-        }
+        permissions = (Permissions)checkPlugin("Permissions");
+        lwcPlugin = (LWCPlugin)checkPlugin("LWC");
         
         reloadConfig();
-        checkLWC();
         for (World w : getServer().getWorlds())
         	loadTombList(w.getName());
         
@@ -233,19 +233,26 @@ public class Tombstone extends JavaPlugin {
         	saveTombList(w.getName());
 	}
 	
-	private void checkLWC() {
-		if (!lwcEnable) return;
-		if (lwcPlugin != null) return;
-		lwcPlugin = getServer().getPluginManager().getPlugin("LWC");
-		if (lwcPlugin != null) {
-			log.info("[Tombstone] LWC Found, enabling chest protection.");
+	/*
+	 * Check if a plugin is loaded/enabled already. Returns the plugin if so, null otherwise
+	 */
+	private Plugin checkPlugin(String p) {
+		Plugin plugin = pm.getPlugin(p);
+		return checkPlugin(plugin);
+	}
+	
+	private Plugin checkPlugin(Plugin plugin) {
+		if (plugin != null && plugin.isEnabled()) {
+			log.info("[Tombstone] Using " + plugin.getDescription().getName() + " (v" + plugin.getDescription().getVersion() + ")");
+			return plugin;
 		}
+		return null;
 	}
 	
 	private Boolean activateLWC(Player player, TombBlock tBlock) {
 		if (!lwcEnable) return false;
 		if (lwcPlugin == null) return false;
-		LWC lwc = ((LWCPlugin)lwcPlugin).getLWC();
+		LWC lwc = lwcPlugin.getLWC();
 		
 		// Register the chest + sign as private
 		Block block = tBlock.getBlock();
@@ -261,7 +268,7 @@ public class Tombstone extends JavaPlugin {
 	private void deactivateLWC(TombBlock tBlock, boolean force) {
 		if (!lwcEnable) return;
 		if (lwcPlugin == null) return;
-		LWC lwc = ((LWCPlugin)lwcPlugin).getLWC();
+		LWC lwc = lwcPlugin.getLWC();
 		
 		// Remove the protection on the chest
 		Block _block = tBlock.getBlock();
@@ -285,33 +292,6 @@ public class Tombstone extends JavaPlugin {
 			}
 		}
 		tBlock.setLwcEnabled(false);
-	}
-	
-	/*
-	 * Find what Permissions plugin we're using and enable it.
-	 */
-	private boolean setupPermissions() {
-		Plugin perm;
-		// Apparently GM isn't a new permissions plugin, it's Permissions "2.0.1"
-		// API change broke my plugin.
-		perm = pm.getPlugin("Permissions");
-		// We're running Permissions
-		if (perm != null) {
-			if (!perm.isEnabled()) {
-				pm.enablePlugin(perm);
-			}
-			permissions = (Permissions)perm;
-			try {
-				String[] permParts = Permissions.version.split("\\.");
-				permVersion = Double.parseDouble(permParts[0] + "." + permParts[1]);
-			} catch (Exception e) {
-				log.info("Could not determine Permissions version: " + Permissions.version);
-				return true;
-			}
-			return true;
-		}
-		// Permissions not loaded
-		return false;
 	}
     
 	/*
@@ -438,6 +418,7 @@ public class Tombstone extends JavaPlugin {
         	Player p = (Player)event.getEntity();
         	
         	if (!hasPerm(p, "tombstone.use", true)) return;
+        	
         	if (event.getDrops().size() == 0) {
         		sendMessage(p, "Inventory Empty.");
         		return;
@@ -663,6 +644,34 @@ public class Tombstone extends JavaPlugin {
         			mat == Material.SNOW || 
         			mat == Material.SUGAR_CANE);
         }
+	}
+	
+	private class sListener extends ServerListener {
+		@Override
+		public void onPluginEnabled(PluginEvent event) {
+			if (lwcPlugin == null) {
+				if (event.getPlugin().getDescription().getName().equalsIgnoreCase("LWC")) {
+					lwcPlugin = (LWCPlugin)checkPlugin(event.getPlugin());
+				}
+			}
+			if (permissions == null) {
+				if (event.getPlugin().getDescription().getName().equalsIgnoreCase("Permissions")) {
+					permissions = (Permissions)checkPlugin(event.getPlugin());
+				}
+			}
+		}
+		
+		@Override
+		public void onPluginDisabled(PluginEvent event) {
+			if (event.getPlugin() == lwcPlugin) {
+				log.info("[Tombstone] LWC plugin lost.");
+				lwcPlugin = null;
+			}
+			if (event.getPlugin() == permissions) {
+				log.info("[Tombstone] Permissions plugin lost.");
+				permissions = null;
+			}
+		}
 	}
 	
 	private class TombThread extends Thread {
