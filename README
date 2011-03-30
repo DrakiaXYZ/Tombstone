@@ -51,6 +51,9 @@ noDestroy - Set to true to disallow any player from destroying a tombstone (Othe
 =============
  Changes
 =============
+[Version 1.1.2]
+  - Fixed loading tombstone list after server restart
+  - Check if use is online before sending tombstone messages
 [Version 1.1.1]
   - Updated to latest RB
 [Version 1.1.0]

@@ -165,7 +165,7 @@ public class Tombstone extends JavaPlugin {
 				Block block = readBlock(split[0]);
 				Block lBlock = readBlock(split[1]);
 				Block sign = readBlock(split[2]);
-				Player owner = getServer().getPlayer(split[3]);
+				String owner = split[3];
 				long time = Long.valueOf(split[4]);
 				boolean lwc = Boolean.valueOf(split[5]);
 				if (block == null || owner == null) {
@@ -203,7 +203,7 @@ public class Tombstone extends JavaPlugin {
 				bw.append(":");
 				bw.append(printBlock(tBlock.getSign()));
 				bw.append(":");
-				bw.append(tBlock.getOwner().getName());
+				bw.append(tBlock.getOwner());
 				bw.append(":");
 				bw.append(String.valueOf(tBlock.getTime()));
 				bw.append(":");
@@ -281,7 +281,7 @@ public class Tombstone extends JavaPlugin {
 			lwc.getPhysicalDatabase().unregisterProtection(protection.getId());
 			//Set to public instead of removing completely
 			if (lwcPublic && !force)
-				lwc.getPhysicalDatabase().registerProtection(_block.getTypeId(), ProtectionTypes.PUBLIC, _block.getWorld().getName(), tBlock.getOwner().getName(), "", _block.getX(), _block.getY(), _block.getZ());
+				lwc.getPhysicalDatabase().registerProtection(_block.getTypeId(), ProtectionTypes.PUBLIC, _block.getWorld().getName(), tBlock.getOwner(), "", _block.getX(), _block.getY(), _block.getZ());
 		}
 		
 		// Remove the protection on the sign
@@ -292,7 +292,7 @@ public class Tombstone extends JavaPlugin {
 				lwc.getPhysicalDatabase().unregisterProtection(protection.getId());
 				// Set to public instead of removing completely
 				if (lwcPublic && !force)
-					lwc.getPhysicalDatabase().registerProtection(_block.getTypeId(), ProtectionTypes.PUBLIC, _block.getWorld().getName(), tBlock.getOwner().getName(), "", _block.getX(), _block.getY(), _block.getZ());
+					lwc.getPhysicalDatabase().registerProtection(_block.getTypeId(), ProtectionTypes.PUBLIC, _block.getWorld().getName(), tBlock.getOwner(), "", _block.getX(), _block.getY(), _block.getZ());
 			}
 		}
 		tBlock.setLwcEnabled(false);
@@ -534,7 +534,7 @@ public class Tombstone extends JavaPlugin {
 				removeSign = 0;
 			
 			// Create a TombBlock for this tombstone
-			TombBlock tBlock = new TombBlock(sChest.getBlock(), (lChest != null) ? lChest.getBlock() : null, sBlock, p, (System.currentTimeMillis() / 1000));
+			TombBlock tBlock = new TombBlock(sChest.getBlock(), (lChest != null) ? lChest.getBlock() : null, sBlock, p.getName(), (System.currentTimeMillis() / 1000));
 			
 			// Protect the chest/sign if LWC is installed.
 			Boolean prot = false;
@@ -692,7 +692,9 @@ public class Tombstone extends JavaPlugin {
 						// Remove the protection on the block
 						deactivateLWC(tBlock, false);
 						tBlock.setLwcEnabled(false);
-						sendMessage(tBlock.getOwner(), "LWC Protection disabled on your tombstone!");
+						Player p = getServer().getPlayer(tBlock.getOwner());
+						if (p != null)
+							sendMessage(p, "LWC Protection disabled on your tombstone!");
 					}
 				}
 				
@@ -715,7 +717,9 @@ public class Tombstone extends JavaPlugin {
 					if (tBlock.getSign() != null) tombBlockList.remove(tBlock.getSign().getLocation());
 					
 					saveTombList(tBlock.getBlock().getWorld().getName());
-					sendMessage(tBlock.getOwner(), "Your tombstone has been destroyed!");
+					Player p = getServer().getPlayer(tBlock.getOwner());
+					if (p != null)
+						sendMessage(p, "Your tombstone has been destroyed!");
 				}
 			}
 		}
@@ -726,16 +730,16 @@ public class Tombstone extends JavaPlugin {
 		private Block lBlock;
 		private Block sign;
 		private long time;
-		private Player owner;
+		private String owner;
 		private boolean lwcEnabled = false;
-		TombBlock(Block block, Block lBlock, Block sign, Player owner, long time) {
+		TombBlock(Block block, Block lBlock, Block sign, String owner, long time) {
 			this.block = block;
 			this.lBlock = lBlock;
 			this.sign = sign;
 			this.owner = owner;
 			this.time = time;
 		}
-		TombBlock(Block block, Block lBlock, Block sign, Player owner, long time, boolean lwc) {
+		TombBlock(Block block, Block lBlock, Block sign, String owner, long time, boolean lwc) {
 			this.block = block;
 			this.lBlock = lBlock;
 			this.sign = sign;
@@ -755,7 +759,7 @@ public class Tombstone extends JavaPlugin {
 		Block getSign() {
 			return sign;
 		}
-		Player getOwner() {
+		String getOwner() {
 			return owner;
 		}
 		boolean getLwcEnabled() {
