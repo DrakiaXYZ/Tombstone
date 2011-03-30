@@ -40,12 +40,15 @@ import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.Event.Priority;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockListener;
-import org.bukkit.event.block.BlockRightClickEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityListener;
-import org.bukkit.event.server.PluginEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerListener;
+import org.bukkit.event.server.PluginDisableEvent;
+import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.event.server.ServerListener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -64,6 +67,7 @@ public class Tombstone extends JavaPlugin {
 	private final eListener entityListener = new eListener();
 	private final bListener blockListener = new bListener();
 	private final sListener serverListener = new sListener();
+	private final pListener playerListener = new pListener();
 	public static Logger log;
 	PluginManager pm;
 	
@@ -100,7 +104,7 @@ public class Tombstone extends JavaPlugin {
         pm = getServer().getPluginManager();
         pm.registerEvent(Event.Type.ENTITY_DEATH, entityListener, Priority.Normal, this);
         pm.registerEvent(Event.Type.BLOCK_BREAK, blockListener, Priority.Normal, this);
-        pm.registerEvent(Event.Type.BLOCK_RIGHTCLICKED, blockListener, Priority.Normal, this);
+        pm.registerEvent(Event.Type.PLAYER_INTERACT, playerListener, Priority.Normal, this);
         pm.registerEvent(Event.Type.PLUGIN_ENABLE, serverListener, Priority.Monitor, this);
 		pm.registerEvent(Event.Type.PLUGIN_DISABLE, serverListener, Priority.Monitor, this);
         
@@ -341,10 +345,13 @@ public class Tombstone extends JavaPlugin {
 			tombList.remove(tBlock);
 			saveTombList(b.getWorld().getName());
     	}
-    	
+    }
+    
+    private class pListener extends PlayerListener {
     	@Override
-    	public void onBlockRightClick(BlockRightClickEvent event) {
-    		Block b = event.getBlock();
+    	public void onPlayerInteract(PlayerInteractEvent event) {
+    		if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+    		Block b = event.getClickedBlock();
     		if (b.getType() != Material.SIGN_POST) return;
     		if (!hasPerm(event.getPlayer(), "tombstone.quickloot", true)) return;
     		
@@ -648,7 +655,7 @@ public class Tombstone extends JavaPlugin {
 	
 	private class sListener extends ServerListener {
 		@Override
-		public void onPluginEnabled(PluginEvent event) {
+		public void onPluginEnable(PluginEnableEvent event) {
 			if (lwcPlugin == null) {
 				if (event.getPlugin().getDescription().getName().equalsIgnoreCase("LWC")) {
 					lwcPlugin = (LWCPlugin)checkPlugin(event.getPlugin());
@@ -662,7 +669,7 @@ public class Tombstone extends JavaPlugin {
 		}
 		
 		@Override
-		public void onPluginDisabled(PluginEvent event) {
+		public void onPluginDisable(PluginDisableEvent event) {
 			if (event.getPlugin() == lwcPlugin) {
 				log.info("[Tombstone] LWC plugin lost.");
 				lwcPlugin = null;

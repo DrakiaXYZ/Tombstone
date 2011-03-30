@@ -51,6 +51,8 @@ noDestroy - Set to true to disallow any player from destroying a tombstone (Othe
 =============
  Changes
 =============
+[Version 1.1.1]
+  - Updated to latest RB
 [Version 1.1.0]
   - Changed versioning scheme
   - Changed loading of permissions/LWC
