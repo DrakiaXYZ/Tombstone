@@ -318,19 +318,20 @@ public class Tombstone extends JavaPlugin {
     	@Override
     	public void onBlockBreak(BlockBreakEvent event) {
     		Block b = event.getBlock();
+    		Player p = event.getPlayer();
     		if (b.getType() != Material.CHEST && b.getType() != Material.SIGN_POST) return;
 
     		TombBlock tBlock = tombBlockList.get(b.getLocation());
     		if (tBlock == null) return;
     		
-    		if (noDestroy) {
+    		if (noDestroy && !hasPerm(p, "tombstone.admin", p.isOp())) {
     			sendMessage(event.getPlayer(), "Tombstone unable to be destroyed");
     			event.setCancelled(true);
     			return;
     		}
 
 			if (tBlock.getLwcEnabled()) {
-				if (tBlock.getOwner().equals(event.getPlayer())) {
+				if (tBlock.getOwner().equals(p) || hasPerm(p, "tombstone.admin", p.isOp())) {
 					deactivateLWC(tBlock, true);
 				} else {
 					event.setCancelled(true);
