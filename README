@@ -52,6 +52,11 @@ noDestroy - Set to true to disallow any player from destroying a tombstone (Othe
 =============
  Changes
 =============
+[Version 1.1.6]
+  - Fixed some owner comparisons.
+[Version 1.1.5]
+  - Moved setting "plugin" to onEnable
+  - Moved setLine() outside of scheduler
 [Version 1.1.4]
   - Small fix to LWC checking
 [Version 1.1.3]

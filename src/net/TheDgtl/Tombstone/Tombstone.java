@@ -332,7 +332,7 @@ public class Tombstone extends JavaPlugin {
     		}
 
 			if (lwcPlugin != null && lwcEnable && tBlock.getLwcEnabled()) {
-				if (tBlock.getOwner().equals(p) || hasPerm(p, "tombstone.admin", p.isOp())) {
+				if (tBlock.getOwner().equals(p.getName()) || hasPerm(p, "tombstone.admin", p.isOp())) {
 					deactivateLWC(tBlock, true);
 				} else {
 					event.setCancelled(true);
@@ -362,7 +362,7 @@ public class Tombstone extends JavaPlugin {
     		if (tBlock == null) return;
     		
 			// Check owner
-			if (!tBlock.getOwner().equals(event.getPlayer())) return;
+			if (!tBlock.getOwner().equals(event.getPlayer().getName())) return;
 			
 			Chest sChest = (Chest)tBlock.getBlock().getState();
 			Chest lChest = (tBlock.getLBlock() != null) ? (Chest)tBlock.getLBlock().getState() : null;
