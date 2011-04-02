@@ -77,7 +77,7 @@ public class Tombstone extends JavaPlugin {
 	private ConcurrentLinkedQueue<TombBlock> tombList = new ConcurrentLinkedQueue<TombBlock>();
 	private HashMap<Location, TombBlock> tombBlockList = new HashMap<Location, TombBlock>();
 	private Configuration config;
-	private Tombstone plugin = this;
+	private Tombstone plugin;
 	
 	/**
 	 * Configuration options - Defaults
@@ -110,6 +110,7 @@ public class Tombstone extends JavaPlugin {
         
         permissions = (Permissions)checkPlugin("Permissions");
         lwcPlugin = (LWCPlugin)checkPlugin("LWC");
+        plugin = this;
         
         reloadConfig();
         for (World w : getServer().getWorlds())
@@ -325,12 +326,12 @@ public class Tombstone extends JavaPlugin {
     		if (tBlock == null) return;
     		
     		if (noDestroy && !hasPerm(p, "tombstone.admin", p.isOp())) {
-    			sendMessage(event.getPlayer(), "Tombstone unable to be destroyed");
+    			sendMessage(p, "Tombstone unable to be destroyed");
     			event.setCancelled(true);
     			return;
     		}
 
-			if (tBlock.getLwcEnabled()) {
+			if (lwcPlugin != null && lwcEnable && tBlock.getLwcEnabled()) {
 				if (tBlock.getOwner().equals(p) || hasPerm(p, "tombstone.admin", p.isOp())) {
 					deactivateLWC(tBlock, true);
 				} else {
@@ -607,16 +608,16 @@ public class Tombstone extends JavaPlugin {
         }
         
         private void createSign(Block signBlock, final Player p) {
-        	final String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
-        	final String time = new SimpleDateFormat("hh:mm a").format(new Date());
+        	String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+        	String time = new SimpleDateFormat("hh:mm a").format(new Date());
         	signBlock.setType(Material.SIGN_POST);
         	final Sign sign = (Sign)signBlock.getState();
+        	sign.setLine(0, p.getName());
+        	sign.setLine(1, "RIP");
+        	sign.setLine(2, date);
+        	sign.setLine(3, time);
 			getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
 				public void run() {
-		        	sign.setLine(0, p.getName());
-		        	sign.setLine(1, "RIP");
-		        	sign.setLine(2, date);
-		        	sign.setLine(3, time);
 		        	sign.update();
 				}
 			});
