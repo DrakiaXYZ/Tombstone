@@ -40,6 +40,7 @@ import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.Event.Priority;
+import org.bukkit.event.Event.Result;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockListener;
@@ -354,14 +355,14 @@ public class Tombstone extends JavaPlugin {
     	public void onPlayerInteract(PlayerInteractEvent event) {
     		if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
     		Block b = event.getClickedBlock();
-    		if (b.getType() != Material.SIGN_POST) return;
+    		if (b.getType() != Material.SIGN_POST && b.getType() != Material.CHEST) return;
+    		// We'll do quickloot on rightclick of chest if we're going to destroy it anyways
+    		if (b.getType() == Material.CHEST && (!destroyQuickLoot || !noDestroy)) return;
     		if (!hasPerm(event.getPlayer(), "tombstone.quickloot", true)) return;
     		
-    		// Loop through tombstones looking to see if this is part of one.
     		TombBlock tBlock = tombBlockList.get(b.getLocation());
     		if (tBlock == null) return;
-    		
-			// Check owner
+
 			if (!tBlock.getOwner().equals(event.getPlayer().getName())) return;
 			
 			Chest sChest = (Chest)tBlock.getBlock().getState();
@@ -398,6 +399,13 @@ public class Tombstone extends JavaPlugin {
 			}
 			
 			if (!overflow) {
+				
+				// Cancel opening chest
+				if (b.getType() == Material.CHEST) {
+					event.setUseInteractedBlock(Result.DENY);
+					event.setUseItemInHand(Result.DENY);
+				}
+				
 				// Deactivate LWC
 				deactivateLWC(tBlock, true);
 				// Remove from tombList

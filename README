@@ -52,6 +52,8 @@ noDestroy - Set to true to disallow any player from destroying a tombstone (Othe
 =============
  Changes
 =============
+[Version 1.1.8]
+  - Right-clicking a chest will quickloot/destroy if you have noDestroy/destroyQuickLoot enabled
 [Version 1.1.7]
   - Fixed quicklooting in b670
 [Version 1.1.6]
