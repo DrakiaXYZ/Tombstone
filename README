@@ -21,6 +21,7 @@ Configurable timeout for LWC unprotection
 Configurable timeout for destruction of tombstones, works in unloaded chunks as well
 Quickloot support, right click the sign on a tombstone to loot all items in it (Your tombstone only!)
 Place a sign on top of the chest stating the players name and time of death
+The ability to point your compass at your tombstones! (Broken in 1.4)
 
 =============
  Permissions
@@ -33,6 +34,9 @@ tombstone.sign - Whether the player gets a sign on their tombstone chest
 tombstone.freesign - Allow the player to get a free sign whether they are carrying one or not.
 tombstone.quickloot - Whether to allow a player/group to quickloot by right clicking the tombstone sign.
 tombstone.admin - Allow this user to destroy other peoples tombstones.
+tombstone.cmd.tomblist - Allow this user to use /tomblist
+tombstone.cmd.tombfind - Allow this user to use /tombfind
+tombstone.cmd.tombreset - Allow this user to use /tombreset
 
 =============
  Config
@@ -52,6 +56,8 @@ noDestroy - Set to true to disallow any player from destroying a tombstone (Othe
 =============
  Changes
 =============
+[Version 1.2.0]
+  - Added compass commands.
 [Version 1.1.8]
   - Right-clicking a chest will quickloot/destroy if you have noDestroy/destroyQuickLoot enabled
 [Version 1.1.7]

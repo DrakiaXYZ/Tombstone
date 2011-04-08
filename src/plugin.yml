@@ -1,6 +1,18 @@
 name: Tombstone
 main: net.TheDgtl.Tombstone.Tombstone
-version: 1.1.8
+version: 1.2.0
 description: Tombstone mod for Bukkit
 author: Drakia
 website: http://www.thedgtl.net
+commands:
+  tomblist:
+    description: Show a list of your Tombstones
+    usage: /<command> - Show a list of your Tombstones
+  tombfind:
+    description: |
+      Set your compass to point at the designated Tombstone.
+      Get the index using /tomblist
+    usage: /<command> <index> - Point your compass at the given Tombstone
+  tombreset:
+    description: Reset your compass to spawn
+    usage: /<command>

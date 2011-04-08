@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -37,6 +38,8 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
 import org.bukkit.block.Sign;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.Event.Priority;
@@ -77,6 +80,7 @@ public class Tombstone extends JavaPlugin {
 	
 	private ConcurrentLinkedQueue<TombBlock> tombList = new ConcurrentLinkedQueue<TombBlock>();
 	private HashMap<Location, TombBlock> tombBlockList = new HashMap<Location, TombBlock>();
+	private HashMap<String, ArrayList<TombBlock>> playerTombList = new HashMap<String, ArrayList<TombBlock>>();
 	private Configuration config;
 	private Tombstone plugin;
 	
@@ -180,6 +184,12 @@ public class Tombstone extends JavaPlugin {
 				tombBlockList.put(block.getLocation(), tBlock);
 				if (lBlock != null) tombBlockList.put(lBlock.getLocation(), tBlock);
 				if (sign != null) tombBlockList.put(sign.getLocation(), tBlock);
+				ArrayList<TombBlock> pList = playerTombList.get(owner);
+				if (pList == null) {
+					pList = new ArrayList<TombBlock>();
+					playerTombList.put(owner, pList);
+				}
+				pList.add(tBlock);
 			}
 			scanner.close();
 		} catch (IOException e) {
@@ -299,6 +309,22 @@ public class Tombstone extends JavaPlugin {
 		}
 		tBlock.setLwcEnabled(false);
 	}
+	
+	private void removeTomb(TombBlock tBlock, boolean removeList) {
+		if (tBlock == null) return;
+		
+		tombBlockList.remove(tBlock.getBlock().getLocation());
+		if (tBlock.getLBlock() != null) tombBlockList.remove(tBlock.getLBlock().getLocation());
+		if (tBlock.getSign() != null) tombBlockList.remove(tBlock.getSign().getLocation());
+		
+		playerTombList.remove(tBlock.getOwner());
+
+		if (removeList)
+			tombList.remove(tBlock);
+		
+		if (tBlock.getBlock() != null)
+			saveTombList(tBlock.getBlock().getWorld().getName());
+	}
     
 	/*
 	 * Check whether the player has the given permissions.
@@ -314,6 +340,63 @@ public class Tombstone extends JavaPlugin {
     public void sendMessage(Player p, String msg) {
     	if (!pMessage) return;
     	p.sendMessage("[Tombstone] " + msg);
+    }
+    
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    	if (!(sender instanceof Player)) return false;
+    	Player p = (Player)sender;
+    	String cmd = command.getName();
+    	if (cmd.equalsIgnoreCase("tomblist")) {
+    		if (!hasPerm(p, "tombstone.cmd.tomblist", p.isOp())) {
+    			sendMessage(p, "Permission Denied");
+    			return true;
+    		}
+    		ArrayList<TombBlock> pList = playerTombList.get(p.getName());
+    		if (pList == null) {
+    			sendMessage(p, "You have no tombstones.");
+    			return true;
+    		}
+			sendMessage(p, "Tombstone List:");
+			int i = 0;
+			for (TombBlock tomb : pList) {
+				i++;
+				if (tomb.getBlock() == null) continue;
+				int X = tomb.getBlock().getX();
+				int Y = tomb.getBlock().getY();
+				int Z = tomb.getBlock().getZ();
+				sendMessage(p, "  " + i + " - World: " + tomb.getBlock().getWorld().getName() + " @(" + X + "," + Y + "," + Z + ")");
+			}
+    		return true;
+    	} else if (cmd.equalsIgnoreCase("tombfind")) {
+    		if (!hasPerm(p, "tombstone.cmd.tombfind", p.isOp())) {
+    			sendMessage(p, "Permission Denied");
+    			return true;
+    		}
+    		if (args.length != 1) return false;
+    		ArrayList<TombBlock> pList = playerTombList.get(p.getName());
+    		if (pList == null) {
+    			sendMessage(p, "You have no tombstones.");
+    			return true;
+    		}
+    		int slot = Integer.parseInt(args[0]) - 1;
+    		if (slot < 0 || slot >= pList.size()) {
+    			sendMessage(p, "Invalid Tombstone");
+    			return true;
+    		}
+    		TombBlock tBlock = pList.get(slot);
+    		p.setCompassTarget(tBlock.getBlock().getLocation());
+    		sendMessage(p, "Compass pointed at Tombstone #" + args[0]);
+    		return true;
+    	} else if (cmd.equalsIgnoreCase("tombreset")) {
+    		if (!hasPerm(p, "tombstone.cmd.tombreset", p.isOp())) {
+    			sendMessage(p, "Permission Denied");
+    			return true;
+    		}
+    		p.setCompassTarget(p.getWorld().getSpawnLocation());
+    		return true;
+    	}
+    	return false;
     }
     
     private class bListener extends BlockListener {
@@ -340,13 +423,8 @@ public class Tombstone extends JavaPlugin {
 					return;
 				}
 			}
-			// Remove this tombstone from the tombBlockList
-			tombBlockList.remove(tBlock.getBlock().getLocation());
-			if (tBlock.getLBlock() != null) tombBlockList.remove(tBlock.getLBlock().getLocation());
-			if (tBlock.getSign() != null) tombBlockList.remove(tBlock.getSign().getLocation());
-			// Remove this tombstone from tombList
-			tombList.remove(tBlock);
-			saveTombList(b.getWorld().getName());
+			
+			removeTomb(tBlock, true);
     	}
     }
     
@@ -408,13 +486,7 @@ public class Tombstone extends JavaPlugin {
 				
 				// Deactivate LWC
 				deactivateLWC(tBlock, true);
-				// Remove from tombList
-				tombList.remove(tBlock);
-				// Remove this tombstone from the tombBlockList
-				tombBlockList.remove(tBlock.getBlock().getLocation());
-				if (tBlock.getLBlock() != null) tombBlockList.remove(tBlock.getLBlock().getLocation());
-				if (tBlock.getSign() != null) tombBlockList.remove(tBlock.getSign().getLocation());
-				saveTombList(b.getWorld().getName());
+				removeTomb(tBlock, true);
 				
 				if (destroyQuickLoot) {
 					if (tBlock.getSign() != null) tBlock.getSign().setType(Material.AIR);
@@ -562,6 +634,14 @@ public class Tombstone extends JavaPlugin {
 			tombBlockList.put(tBlock.getBlock().getLocation(), tBlock);
 			if (tBlock.getLBlock() != null) tombBlockList.put(tBlock.getLBlock().getLocation(), tBlock);
 			if (tBlock.getSign() != null) tombBlockList.put(tBlock.getSign().getLocation(), tBlock);
+			
+			// Add tombstone to player lookup list
+			ArrayList<TombBlock> pList = playerTombList.get(p.getName());
+			if (pList == null) {
+				pList = new ArrayList<TombBlock>();
+				playerTombList.put(p.getName(), pList);
+			}
+			pList.add(tBlock);
 			
 			saveTombList(p.getWorld().getName());
 			
@@ -723,13 +803,8 @@ public class Tombstone extends JavaPlugin {
 					
 					// Remove from tombList
 					iter.remove();
-					
-					// Remove this tombstone from the tombBlockList
-					tombBlockList.remove(tBlock.getBlock().getLocation());
-					if (tBlock.getLBlock() != null) tombBlockList.remove(tBlock.getLBlock().getLocation());
-					if (tBlock.getSign() != null) tombBlockList.remove(tBlock.getSign().getLocation());
-					
-					saveTombList(tBlock.getBlock().getWorld().getName());
+					removeTomb(tBlock, false);
+
 					Player p = getServer().getPlayer(tBlock.getOwner());
 					if (p != null)
 						sendMessage(p, "Your tombstone has been destroyed!");
