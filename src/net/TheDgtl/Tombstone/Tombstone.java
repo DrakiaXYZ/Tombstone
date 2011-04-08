@@ -385,8 +385,9 @@ public class Tombstone extends JavaPlugin {
     			return true;
     		}
     		TombBlock tBlock = pList.get(slot);
-    		p.setCompassTarget(tBlock.getBlock().getLocation());
-    		sendMessage(p, "Compass pointed at Tombstone #" + args[0]);
+    		double degrees = (getYawTo(tBlock.getBlock().getLocation(), p.getLocation()) + 270) % 360;
+    		//p.setCompassTarget(tBlock.getBlock().getLocation());
+    		sendMessage(p, "Your tombstone #" + args[0] + " is to the " + getDirection(degrees));
     		return true;
     	} else if (cmd.equalsIgnoreCase("tombreset")) {
     		if (!hasPerm(p, "tombstone.cmd.tombreset", p.isOp())) {
@@ -397,6 +398,48 @@ public class Tombstone extends JavaPlugin {
     		return true;
     	}
     	return false;
+    }
+
+	/**
+	 * Gets the Yaw from one location to another in relation to North.
+	 * 
+	 */
+	public double getYawTo(Location from, Location to) {
+			final int distX = to.getBlockX() - from.getBlockX();
+			final int distZ = to.getBlockZ() - from.getBlockZ();
+			double degrees = Math.toDegrees(Math.atan2(-distX, distZ));
+			degrees += 180;
+		return degrees;
+	}
+    
+    /**
+     * Converts a rotation to a cardinal direction name.
+     * Author: sk89q - Original function from CommandBook plugin
+     * @param rot
+     * @return
+     */
+    private static String getDirection(double rot) {
+        if (0 <= rot && rot < 22.5) {
+            return "North";
+        } else if (22.5 <= rot && rot < 67.5) {
+            return "Northeast";
+        } else if (67.5 <= rot && rot < 112.5) {
+            return "East";
+        } else if (112.5 <= rot && rot < 157.5) {
+            return "Southeast";
+        } else if (157.5 <= rot && rot < 202.5) {
+            return "South";
+        } else if (202.5 <= rot && rot < 247.5) {
+            return "Southwest";
+        } else if (247.5 <= rot && rot < 292.5) {
+            return "West";
+        } else if (292.5 <= rot && rot < 337.5) {
+            return "Northwest";
+        } else if (337.5 <= rot && rot < 360.0) {
+            return "North";
+        } else {
+            return null;
+        }
     }
     
     private class bListener extends BlockListener {
