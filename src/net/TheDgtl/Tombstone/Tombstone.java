@@ -371,6 +371,7 @@ public class Tombstone extends JavaPlugin {
 			boolean overflow = false;
 			for (int cSlot = 0; cSlot < items.length; cSlot++) {
 				ItemStack item = items[cSlot];
+				if (item == null) continue;
 				if (item.getType() == Material.AIR) continue;
 				int slot = event.getPlayer().getInventory().firstEmpty();
 				if (slot == -1) {
@@ -382,8 +383,9 @@ public class Tombstone extends JavaPlugin {
 			}
 			if (lChest != null) {
 				items = lChest.getInventory().getContents();
-				for (int cSlot = 0; cSlot < items.length; cSlot++) {
+				for (int cSlot = 0; cSlot < items.length; cSlot++) {					
 					ItemStack item = items[cSlot];
+					if (item == null) continue;
 					if (item.getType() == Material.AIR) continue;
 					int slot = event.getPlayer().getInventory().firstEmpty();
 					if (slot == -1) {
@@ -454,6 +456,7 @@ public class Tombstone extends JavaPlugin {
         	int pChestCount = 0;
         	int pSignCount = 0;
     		for (ItemStack item : event.getDrops()) {
+    			if (item == null) continue;
     			if (item.getTypeId() == Material.CHEST.getId()) pChestCount += item.getAmount();
     			if (item.getTypeId() == Material.SIGN.getId()) pSignCount += item.getAmount();
     		}
@@ -556,28 +559,28 @@ public class Tombstone extends JavaPlugin {
 			
 			// Next get the players inventory using the getDrops() method.
 			for (Iterator<ItemStack> iter = event.getDrops().listIterator(); iter.hasNext();) {
-				ItemStack i = iter.next();
-				
+				ItemStack item = iter.next();
+				if (item == null) continue;
 				// Take the chest(s)
-				if (removeChestCount > 0 && i.getType() == Material.CHEST) {
-					if (i.getAmount() >= removeChestCount) {
-						i.setAmount(i.getAmount() - removeChestCount);
+				if (removeChestCount > 0 && item.getType() == Material.CHEST) {
+					if (item.getAmount() >= removeChestCount) {
+						item.setAmount(item.getAmount() - removeChestCount);
 						removeChestCount = 0;
 					} else {
-						removeChestCount -= i.getAmount();
-						i.setAmount(0);
+						removeChestCount -= item.getAmount();
+						item.setAmount(0);
 					}
-					if (i.getAmount() == 0) {
+					if (item.getAmount() == 0) {
 						iter.remove();
 						continue;
 					}
 				}
 				
 				// Take a sign
-				if (removeSign > 0 && i.getType() == Material.SIGN){
-					i.setAmount(i.getAmount() - 1);
+				if (removeSign > 0 && item.getType() == Material.SIGN){
+					item.setAmount(item.getAmount() - 1);
 					removeSign = 0;
-					if (i.getAmount() == 0) {
+					if (item.getAmount() == 0) {
 						iter.remove();
 						continue;
 					}
@@ -587,9 +590,9 @@ public class Tombstone extends JavaPlugin {
 				if (slot < maxSlot) {
 					if (slot >= sChest.getInventory().getSize()) {
 						if (lChest == null) continue;
-						lChest.getInventory().setItem(slot % sChest.getInventory().getSize(), i);
+						lChest.getInventory().setItem(slot % sChest.getInventory().getSize(), item);
 					} else {
-						sChest.getInventory().setItem(slot, i);
+						sChest.getInventory().setItem(slot, item);
 					}
 					iter.remove();
 					slot++;
@@ -607,7 +610,7 @@ public class Tombstone extends JavaPlugin {
 				sendMessage(p, "Chest will be automatically removed in " + removeTime + "s");
         }
         
-        private void createSign(Block signBlock, final Player p) {
+        private void createSign(Block signBlock, Player p) {
         	String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
         	String time = new SimpleDateFormat("hh:mm a").format(new Date());
         	signBlock.setType(Material.SIGN_POST);

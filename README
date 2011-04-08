@@ -52,6 +52,8 @@ noDestroy - Set to true to disallow any player from destroying a tombstone (Othe
 =============
  Changes
 =============
+[Version 1.1.7]
+  - Fixed quicklooting in b670
 [Version 1.1.6]
   - Fixed some owner comparisons.
 [Version 1.1.5]
