@@ -109,7 +109,8 @@ public class Tombstone extends JavaPlugin {
         pm = getServer().getPluginManager();
         pm.registerEvent(Event.Type.ENTITY_DEATH, entityListener, Priority.Normal, this);
         pm.registerEvent(Event.Type.BLOCK_BREAK, blockListener, Priority.Normal, this);
-        pm.registerEvent(Event.Type.PLAYER_INTERACT, playerListener, Priority.Normal, this);
+        // we destroy a block, so we want last say.
+        pm.registerEvent(Event.Type.PLAYER_INTERACT, playerListener, Priority.Highest, this);
         pm.registerEvent(Event.Type.PLUGIN_ENABLE, serverListener, Priority.Monitor, this);
 		pm.registerEvent(Event.Type.PLUGIN_DISABLE, serverListener, Priority.Monitor, this);
         
@@ -482,7 +483,7 @@ public class Tombstone extends JavaPlugin {
     		if (!hasPerm(event.getPlayer(), "tombstone.quickloot", true)) return;
     		
     		TombBlock tBlock = tombBlockList.get(b.getLocation());
-    		if (tBlock == null) return;
+    		if (tBlock == null || !(tBlock.getBlock().getState() instanceof Chest)) return;
 
 			if (!tBlock.getOwner().equals(event.getPlayer().getName())) return;
 			
@@ -520,12 +521,10 @@ public class Tombstone extends JavaPlugin {
 			}
 			
 			if (!overflow) {
-				
-				// Cancel opening chest
-				if (b.getType() == Material.CHEST) {
-					event.setUseInteractedBlock(Result.DENY);
-					event.setUseItemInHand(Result.DENY);
-				}
+				// We're quicklooting, so no need to resume this interaction
+				event.setUseInteractedBlock(Result.DENY);
+				event.setUseItemInHand(Result.DENY);
+				event.setCancelled(true);
 				
 				// Deactivate LWC
 				deactivateLWC(tBlock, true);
@@ -580,8 +579,8 @@ public class Tombstone extends JavaPlugin {
         	int pSignCount = 0;
     		for (ItemStack item : event.getDrops()) {
     			if (item == null) continue;
-    			if (item.getTypeId() == Material.CHEST.getId()) pChestCount += item.getAmount();
-    			if (item.getTypeId() == Material.SIGN.getId()) pSignCount += item.getAmount();
+    			if (item.getType() == Material.CHEST) pChestCount += item.getAmount();
+    			if (item.getType() == Material.SIGN) pSignCount += item.getAmount();
     		}
     		
 			if (pChestCount == 0 && !hasPerm(p, "tombstone.freechest", false)) {
