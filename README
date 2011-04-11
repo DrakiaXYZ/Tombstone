@@ -56,6 +56,8 @@ noDestroy - Set to true to disallow any player from destroying a tombstone (Othe
 =============
  Changes
 =============
+[Version 1.2.3]
+  - Fixed a bug in /tombfind with invalid input
 [Version 1.2.2]
   - Moved playerInteract to Highest priority since we remove a block.
   - Added check to make sure the tombstone is a chest before we doing anything.

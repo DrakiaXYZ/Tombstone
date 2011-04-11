@@ -380,7 +380,14 @@ public class Tombstone extends JavaPlugin {
     			sendMessage(p, "You have no tombstones.");
     			return true;
     		}
-    		int slot = Integer.parseInt(args[0]) - 1;
+    		int slot = 0;
+    		try {
+    			slot = Integer.parseInt(args[0]);
+    		} catch (Exception e) {
+    			sendMessage(p, "Invalid Tombstone");
+    			return true;
+    		}
+    		slot -= 1;
     		if (slot < 0 || slot >= pList.size()) {
     			sendMessage(p, "Invalid Tombstone");
     			return true;
