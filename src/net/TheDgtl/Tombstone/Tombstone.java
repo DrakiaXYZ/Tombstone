@@ -846,6 +846,8 @@ public class Tombstone extends JavaPlugin {
 					if (tBlock.getLwcEnabled()) {
 						deactivateLWC(tBlock, true);
 					}
+					if (tBlock.getSign() != null)
+						tBlock.getSign().setType(Material.AIR);
 					tBlock.getBlock().setType(Material.AIR);
 					if (tBlock.getLBlock() != null)
 						tBlock.getLBlock().setType(Material.AIR);
