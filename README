@@ -52,10 +52,14 @@ playerMessage - Whether or not to show messages to the player
 saveTombList - Whether to save a list of tombstones between server reloads
 destroyQuickLoot - Set to true to destroy the chest/sign on quickloot
 noDestroy - Set to true to disallow any player from destroying a tombstone (Other than quickloot) 
+noInterfere - Set whether or not to stop tombstone creation next to existing chests (Default true)
 
 =============
  Changes
 =============
+[Version 1.2.5]
+  - Option to bail on tombstone creation if it will interfere with another chest.
+  - Check tombstone stuff more often (Every 100 ticks (5 seconds))
 [Version 1.2.4]
   - Fixed sign drop bug when destroying with timeout.
 [Version 1.2.3]

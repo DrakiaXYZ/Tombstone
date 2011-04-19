@@ -98,6 +98,7 @@ public class Tombstone extends JavaPlugin {
 	private boolean saveTombList = true;
 	private boolean destroyQuickLoot = false;
 	private boolean noDestroy = false;
+	private boolean noInterfere = true;
 	
 	public void onEnable() {
 		PluginDescriptionFile pdfFile = getDescription();
@@ -124,7 +125,7 @@ public class Tombstone extends JavaPlugin {
         
         // Start removal timer. Run every 30 seconds (20 ticks per second)
         if (lwcRemove || tombRemove)
-        	getServer().getScheduler().scheduleSyncRepeatingTask(this, new TombThread(), 0L, 600L);
+        	getServer().getScheduler().scheduleSyncRepeatingTask(this, new TombThread(), 0L, 100L);
 	}
 	
 	public void reloadConfig() {
@@ -140,6 +141,7 @@ public class Tombstone extends JavaPlugin {
         saveTombList = config.getBoolean("saveTombList", saveTombList);
         destroyQuickLoot = config.getBoolean("destroyQuickLoot", destroyQuickLoot);
         noDestroy = config.getBoolean("noDestroy", noDestroy);
+        noInterfere = config.getBoolean("noInterfere", noInterfere);
 
         saveConfig();
     }
@@ -156,6 +158,7 @@ public class Tombstone extends JavaPlugin {
         config.setProperty("saveTombList", saveTombList);
         config.setProperty("destroyQuickLoot", destroyQuickLoot);
         config.setProperty("noDestroy", noDestroy);
+        config.setProperty("noInterfere", noInterfere);
         config.save();
 	}
 	
@@ -600,9 +603,19 @@ public class Tombstone extends JavaPlugin {
 				sendMessage(p, "Could not find room for chest. Inventory dropped");
 				return;
 			}
+			
+			// Check if there is a nearby chest
+			if (noInterfere && checkChest(block)) {
+				sendMessage(p, "There is a chest interfering with your tombstone. Inventory dropped");
+				return;
+			}
         	
 			int removeChestCount = 1;
 			int removeSign = 0;
+			
+			// Do the check for a large chest block here so we can check for interference
+			Block lBlock = findLarge(block);
+			if (lBlock != null && checkChest(lBlock)) lBlock = null;
 			
 			// Set the current block to a chest, init some variables for later use.
 			block.setType(Material.CHEST);
@@ -618,29 +631,24 @@ public class Tombstone extends JavaPlugin {
 			int maxSlot = sChest.getInventory().getSize();
 
 			// Check if they need a large chest.
-			boolean largeChest = false;
 			if (event.getDrops().size() > maxSlot) {
 				// If they are allowed spawn a large chest to catch their entire inventory.
 				if (hasPerm(p, "tombstone.large", false)) {
-					removeChestCount = 2;
-					// Check if the player gets free chests
-					if (hasPerm(p, "tombstone.freechest", false))
-						removeChestCount = 0;
-					
+					if (!hasPerm(p, "tombstone.freechest", false))
+						removeChestCount = 2;
+
 					// Check if the player has enough chests
 					if (pChestCount >= removeChestCount) {
-						Block lBlock = findLarge(block);
 						if (lBlock != null) {
 							lBlock.setType(Material.CHEST);
 							lChest = (Chest)lBlock.getState();
 							maxSlot = maxSlot * 2;
-							largeChest = true;
 						}
 					}
 				}
 			}
 			
-			if (!largeChest) removeChestCount = 1;
+			if (lBlock == null) removeChestCount = 1;
 			
 			// Don't remove any chests if they get a free one.
 			if (hasPerm(p, "tombstone.freechest", false))
@@ -775,6 +783,20 @@ public class Tombstone extends JavaPlugin {
         	exp = base.getWorld().getBlockAt(base.getX(), base.getY(), base.getZ() + 1);
         	if (canReplace(exp.getType())) return exp;
         	return null;
+        }
+        
+        boolean checkChest(Block base) {
+        	// Check all 4 sides for a chest.
+        	Block exp;
+        	exp = base.getWorld().getBlockAt(base.getX() - 1, base.getY(), base.getZ());
+        	if (exp.getType() == Material.CHEST) return true;
+        	exp = base.getWorld().getBlockAt(base.getX(), base.getY(), base.getZ() - 1);
+        	if (exp.getType() == Material.CHEST) return true;
+        	exp = base.getWorld().getBlockAt(base.getX() + 1, base.getY(), base.getZ());
+        	if (exp.getType() == Material.CHEST) return true;
+        	exp = base.getWorld().getBlockAt(base.getX(), base.getY(), base.getZ() + 1);
+        	if (exp.getType() == Material.CHEST) return true;
+        	return false;
         }
         
         Boolean canReplace(Material mat) {
