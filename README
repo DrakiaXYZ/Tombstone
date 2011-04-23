@@ -57,6 +57,8 @@ noInterfere - Set whether or not to stop tombstone creation next to existing che
 =============
  Changes
 =============
+[Version 1.2.6]
+  - Fix long username crash
 [Version 1.2.5]
   - Option to bail on tombstone creation if it will interfere with another chest.
   - Check tombstone stuff more often (Every 100 ticks (5 seconds))

@@ -760,7 +760,9 @@ public class Tombstone extends JavaPlugin {
         	String time = new SimpleDateFormat("hh:mm a").format(new Date());
         	signBlock.setType(Material.SIGN_POST);
         	final Sign sign = (Sign)signBlock.getState();
-        	sign.setLine(0, p.getName());
+        	String name = p.getName();
+        	if (name.length() > 15) name = name.substring(0, 15);
+        	sign.setLine(0, name);
         	sign.setLine(1, "RIP");
         	sign.setLine(2, date);
         	sign.setLine(3, time);
