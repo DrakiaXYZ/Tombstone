@@ -57,6 +57,8 @@ noInterfere - Set whether or not to stop tombstone creation next to existing che
 =============
  Changes
 =============
+[Version 1.2.7]
+  - Check properly if we're placing a big chest for interference
 [Version 1.2.6]
   - Fix long username crash
 [Version 1.2.5]

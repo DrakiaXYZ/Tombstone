@@ -615,7 +615,6 @@ public class Tombstone extends JavaPlugin {
 			
 			// Do the check for a large chest block here so we can check for interference
 			Block lBlock = findLarge(block);
-			if (lBlock != null && checkChest(lBlock)) lBlock = null;
 			
 			// Set the current block to a chest, init some variables for later use.
 			block.setType(Material.CHEST);
@@ -777,13 +776,13 @@ public class Tombstone extends JavaPlugin {
         	// Check all 4 sides for air.
         	Block exp;
         	exp = base.getWorld().getBlockAt(base.getX() - 1, base.getY(), base.getZ());
-        	if (canReplace(exp.getType())) return exp;
+        	if (canReplace(exp.getType()) && (!noInterfere || !checkChest(exp))) return exp;
         	exp = base.getWorld().getBlockAt(base.getX(), base.getY(), base.getZ() - 1);
-        	if (canReplace(exp.getType())) return exp;
+        	if (canReplace(exp.getType()) && (!noInterfere || !checkChest(exp))) return exp;
         	exp = base.getWorld().getBlockAt(base.getX() + 1, base.getY(), base.getZ());
-        	if (canReplace(exp.getType())) return exp;
+        	if (canReplace(exp.getType()) && (!noInterfere || !checkChest(exp))) return exp;
         	exp = base.getWorld().getBlockAt(base.getX(), base.getY(), base.getZ() + 1);
-        	if (canReplace(exp.getType())) return exp;
+        	if (canReplace(exp.getType()) && (!noInterfere || !checkChest(exp))) return exp;
         	return null;
         }
         
