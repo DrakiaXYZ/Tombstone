@@ -99,6 +99,7 @@ public class Tombstone extends JavaPlugin {
 	private boolean destroyQuickLoot = false;
 	private boolean noDestroy = false;
 	private boolean noInterfere = true;
+	private boolean logEvents = false;
 	
 	public void onEnable() {
 		PluginDescriptionFile pdfFile = getDescription();
@@ -142,6 +143,7 @@ public class Tombstone extends JavaPlugin {
         destroyQuickLoot = config.getBoolean("destroyQuickLoot", destroyQuickLoot);
         noDestroy = config.getBoolean("noDestroy", noDestroy);
         noInterfere = config.getBoolean("noInterfere", noInterfere);
+        logEvents = config.getBoolean("logEvents", logEvents);
 
         saveConfig();
     }
@@ -159,6 +161,7 @@ public class Tombstone extends JavaPlugin {
         config.setProperty("destroyQuickLoot", destroyQuickLoot);
         config.setProperty("noDestroy", noDestroy);
         config.setProperty("noInterfere", noInterfere);
+        config.setProperty("logEvents", logEvents);
         config.save();
 	}
 	
@@ -453,6 +456,18 @@ public class Tombstone extends JavaPlugin {
         }
     }
     
+    /**
+     * 
+     * Print a message to terminal if logEvents is enabled
+     * @param msg
+     * @return
+     * 
+     */
+    private void logEvent(String msg) {
+    	if (!logEvents) return;
+    	log.info("[Tombstone] " + msg);
+    }
+    
     private class bListener extends BlockListener {
     	@Override
     	public void onBlockBreak(BlockBreakEvent event) {
@@ -464,6 +479,7 @@ public class Tombstone extends JavaPlugin {
     		if (tBlock == null) return;
     		
     		if (noDestroy && !hasPerm(p, "tombstone.admin", p.isOp())) {
+    			logEvent(p.getName() + " tried to destroy tombstone at " + b.getLocation());
     			sendMessage(p, "Tombstone unable to be destroyed");
     			event.setCancelled(true);
     			return;
@@ -477,7 +493,7 @@ public class Tombstone extends JavaPlugin {
 					return;
 				}
 			}
-			
+			logEvent(p.getName() + " destroyed tombstone at " + b.getLocation());
 			removeTomb(tBlock, true);
     	}
     }
@@ -550,6 +566,7 @@ public class Tombstone extends JavaPlugin {
 			// Manually update inventory for the time being.
 			event.getPlayer().updateInventory();
 			sendMessage(event.getPlayer(), "Tombstone quicklooted!");
+			logEvent(event.getPlayer() + " quicklooted tombstone at " + tBlock.getBlock().getLocation());
 		}
     }
 	
@@ -562,8 +579,11 @@ public class Tombstone extends JavaPlugin {
         	
         	if (!hasPerm(p, "tombstone.use", true)) return;
         	
+        	logEvent(p.getName() + " died.");
+        	
         	if (event.getDrops().size() == 0) {
         		sendMessage(p, "Inventory Empty.");
+        		logEvent(p.getName() + " inventory empty.");
         		return;
         	}
         	
@@ -595,18 +615,22 @@ public class Tombstone extends JavaPlugin {
     		
 			if (pChestCount == 0 && !hasPerm(p, "tombstone.freechest", false)) {
 				sendMessage(p, "No chest found in inventory. Inventory dropped");
+				logEvent(p.getName() + " No chest in inventory.");
 				return;
 			}
         	
         	// Check if we can replace the block.
-			if ( !canReplace(block.getType()) ) {
+			block = findPlace(block);
+			if ( block == null ) {
 				sendMessage(p, "Could not find room for chest. Inventory dropped");
+				logEvent(p.getName() + " Could not find room for chest.");
 				return;
 			}
 			
 			// Check if there is a nearby chest
 			if (noInterfere && checkChest(block)) {
 				sendMessage(p, "There is a chest interfering with your tombstone. Inventory dropped");
+				logEvent(p.getName() + " Chest interfered with tombstone creation.");
 				return;
 			}
         	
@@ -622,6 +646,7 @@ public class Tombstone extends JavaPlugin {
 			BlockState state = block.getState();
 			if (!(state instanceof Chest)) {
 				sendMessage(p, "Could not access chest. Inventory dropped.");
+				logEvent(p.getName() + " Could not access chest.");
 				return;
 			}
 			Chest sChest = (Chest)state;
@@ -748,10 +773,15 @@ public class Tombstone extends JavaPlugin {
 			if (event.getDrops().size() > 0)
 				msg += event.getDrops().size() + " items wouldn't fit in chest.";
 			sendMessage(p, msg);
-			if (prot)
+			logEvent(p.getName() + " " + msg);
+			if (prot) {
 				sendMessage(p, "Chest protected with LWC. " + lwcTime + "s before chest is unprotected.");
-			if (tombRemove)
+				logEvent(p.getName() + " Chest protected with LWC. " + lwcTime + "s before chest is unprotected.");
+			}
+			if (tombRemove) {
 				sendMessage(p, "Chest will be automatically removed in " + removeTime + "s");
+				logEvent(p.getName() + " Chest will be automatically removed in " + removeTime + "s");
+			}
         }
         
         private void createSign(Block signBlock, Player p) {
@@ -770,6 +800,29 @@ public class Tombstone extends JavaPlugin {
 		        	sign.update();
 				}
 			});
+        }
+        
+        
+        /**
+         * Find a block near the base block to place the tombstone
+         * @param base
+         * @return
+         */
+        Block findPlace(Block base) {
+        	if (canReplace(base.getType())) return base;
+        	int x = base.getX();
+        	int y = base.getY();
+        	int z = base.getZ();
+        	World w = base.getWorld();
+        	
+        	for (int i = x - 1; i < x + 1; i++) {
+        		for (int j = z - 1; j < z + 1; j++) {
+        			Block b = w.getBlockAt(i, y, j);
+        			if (canReplace(b.getType())) return b;
+        		}
+        	}
+        	
+        	return null;
         }
         
         Block findLarge(Block base) {
