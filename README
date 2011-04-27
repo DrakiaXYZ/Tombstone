@@ -57,6 +57,9 @@ noInterfere - Set whether or not to stop tombstone creation next to existing che
 =============
  Changes
 =============
+[Version 1.2.9]
+  - Fixed free double chests
+  - Made freechest/freesign default to isOp() without permissions
 [Version 1.2.8]
   - Added logEvent option for debug purposes.
   - Do a 3x3 check for a block to place chest.

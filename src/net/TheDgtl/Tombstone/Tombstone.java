@@ -613,7 +613,7 @@ public class Tombstone extends JavaPlugin {
     			if (item.getType() == Material.SIGN) pSignCount += item.getAmount();
     		}
     		
-			if (pChestCount == 0 && !hasPerm(p, "tombstone.freechest", false)) {
+			if (pChestCount == 0 && !hasPerm(p, "tombstone.freechest", p.isOp())) {
 				sendMessage(p, "No chest found in inventory. Inventory dropped");
 				logEvent(p.getName() + " No chest in inventory.");
 				return;
@@ -657,31 +657,27 @@ public class Tombstone extends JavaPlugin {
 			// Check if they need a large chest.
 			if (event.getDrops().size() > maxSlot) {
 				// If they are allowed spawn a large chest to catch their entire inventory.
-				if (hasPerm(p, "tombstone.large", false)) {
-					if (!hasPerm(p, "tombstone.freechest", false))
-						removeChestCount = 2;
-
+				if (lBlock != null && hasPerm(p, "tombstone.large", p.isOp())) {
+					removeChestCount = 2;
 					// Check if the player has enough chests
-					if (pChestCount >= removeChestCount) {
-						if (lBlock != null) {
-							lBlock.setType(Material.CHEST);
-							lChest = (Chest)lBlock.getState();
-							maxSlot = maxSlot * 2;
-						}
+					if (pChestCount >= removeChestCount || hasPerm(p, "tombstone.freechest", p.isOp())) {
+						lBlock.setType(Material.CHEST);
+						lChest = (Chest)lBlock.getState();
+						maxSlot = maxSlot * 2;
+					} else {
+						removeChestCount = 1;
 					}
 				}
 			}
 			
-			if (lBlock == null) removeChestCount = 1;
-			
 			// Don't remove any chests if they get a free one.
-			if (hasPerm(p, "tombstone.freechest", false))
+			if (hasPerm(p, "tombstone.freechest", p.isOp()))
 				removeChestCount = 0;
 
 			// Check if we have signs enabled, if the player can use signs, and if the player has a sign or gets a free sign
 			Block sBlock = null;
 			if (tombSign && hasPerm(p, "tombstone.sign", true) && 
-				(pSignCount > 0 || hasPerm(p, "tombstone.freesign", false))) {
+				(pSignCount > 0 || hasPerm(p, "tombstone.freesign", p.isOp()))) {
 				// Find a place to put the sign, then place the sign.
 				sBlock = sChest.getWorld().getBlockAt(sChest.getX(), sChest.getY() + 1, sChest.getZ());
 				if (canReplace(sBlock.getType())) {
@@ -696,7 +692,7 @@ public class Tombstone extends JavaPlugin {
 				}
 			}
 			// Don't remove a sign if they get a free one
-			if (hasPerm(p, "tombstone.freesign", false))
+			if (hasPerm(p, "tombstone.freesign", p.isOp()))
 				removeSign = 0;
 			
 			// Create a TombBlock for this tombstone
