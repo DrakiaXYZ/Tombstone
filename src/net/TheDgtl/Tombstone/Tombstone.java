@@ -30,6 +30,8 @@ import java.util.Iterator;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -40,13 +42,28 @@ import org.bukkit.block.Chest;
 import org.bukkit.block.Sign;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Creeper;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Fireball;
+import org.bukkit.entity.Ghast;
+import org.bukkit.entity.Giant;
+import org.bukkit.entity.PigZombie;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Skeleton;
+import org.bukkit.entity.Slime;
+import org.bukkit.entity.Spider;
+import org.bukkit.entity.TNTPrimed;
+import org.bukkit.entity.Wolf;
+import org.bukkit.entity.Zombie;
 import org.bukkit.event.Event;
 import org.bukkit.event.Event.Priority;
 import org.bukkit.event.Event.Result;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockListener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityListener;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -81,6 +98,7 @@ public class Tombstone extends JavaPlugin {
 	private ConcurrentLinkedQueue<TombBlock> tombList = new ConcurrentLinkedQueue<TombBlock>();
 	private HashMap<Location, TombBlock> tombBlockList = new HashMap<Location, TombBlock>();
 	private HashMap<String, ArrayList<TombBlock>> playerTombList = new HashMap<String, ArrayList<TombBlock>>();
+	private HashMap<String, EntityDamageEvent> deathCause = new HashMap<String, EntityDamageEvent>();
 	private Configuration config;
 	private Tombstone plugin;
 	
@@ -100,18 +118,25 @@ public class Tombstone extends JavaPlugin {
 	private boolean noDestroy = false;
 	private boolean noInterfere = true;
 	private boolean logEvents = false;
+	Configuration signConfig = null;
+	String signTemplate[] = new String[4];
 	
 	public void onEnable() {
 		PluginDescriptionFile pdfFile = getDescription();
     	log = Logger.getLogger("Minecraft");
     	config = this.getConfiguration();
     	
+    	// Create default config if needed
+    	File configFile = new File(this.getDataFolder(), "/config.yml");
+    	if (!configFile.exists()) defaultConfig();
+    	
         log.info(pdfFile.getName() + " v." + pdfFile.getVersion() + " is enabled.");
         
         pm = getServer().getPluginManager();
-        pm.registerEvent(Event.Type.ENTITY_DEATH, entityListener, Priority.Normal, this);
+        pm.registerEvent(Event.Type.ENTITY_DEATH, entityListener, Priority.Monitor, this);
+        pm.registerEvent(Event.Type.ENTITY_DAMAGE, entityListener, Priority.Monitor, this);
+        pm.registerEvent(Event.Type.PLAYER_RESPAWN, playerListener, Priority.Monitor, this);
         pm.registerEvent(Event.Type.BLOCK_BREAK, blockListener, Priority.Normal, this);
-        // we destroy a block, so we want last say.
         pm.registerEvent(Event.Type.PLAYER_INTERACT, playerListener, Priority.Highest, this);
         pm.registerEvent(Event.Type.PLUGIN_ENABLE, serverListener, Priority.Monitor, this);
 		pm.registerEvent(Event.Type.PLUGIN_DISABLE, serverListener, Priority.Monitor, this);
@@ -121,10 +146,11 @@ public class Tombstone extends JavaPlugin {
         plugin = this;
         
         reloadConfig();
+        loadSignTemplate();
         for (World w : getServer().getWorlds())
         	loadTombList(w.getName());
         
-        // Start removal timer. Run every 30 seconds (20 ticks per second)
+        // Start removal timer. Run every 5 seconds (20 ticks per second)
         if (lwcRemove || tombRemove)
         	getServer().getScheduler().scheduleSyncRepeatingTask(this, new TombThread(), 0L, 100L);
 	}
@@ -144,11 +170,9 @@ public class Tombstone extends JavaPlugin {
         noDestroy = config.getBoolean("noDestroy", noDestroy);
         noInterfere = config.getBoolean("noInterfere", noInterfere);
         logEvents = config.getBoolean("logEvents", logEvents);
-
-        saveConfig();
     }
 	
-	public void saveConfig() {
+	public void defaultConfig() {
 		config.setProperty("lwcEnable", lwcEnable);
 		config.setProperty("lwcTimeout", lwcTime);
         config.setProperty("lwcRemove", lwcRemove);
@@ -164,11 +188,37 @@ public class Tombstone extends JavaPlugin {
         config.setProperty("logEvents", logEvents);
         config.save();
 	}
+
+	public void loadSignTemplate() {
+		signTemplate[0] = "{name}";
+		signTemplate[1] = "Killed By";
+		signTemplate[2] = "{cause}";
+		signTemplate[3] = "{time}";
+		try {
+			File fh = new File(this.getDataFolder(), "sign.tpl");
+			// Create default
+			if (!fh.exists()) {
+				BufferedWriter bw = new BufferedWriter(new FileWriter(fh));
+				for (int i = 0; i < 4; i++) {
+					bw.append(signTemplate[i]);
+					bw.newLine();
+				}
+				bw.close();
+			// Load sign template
+			} else {
+				Scanner scanner = new Scanner(fh);
+				for (int i = 0; i < 4; i++) {
+					signTemplate[i] = scanner.nextLine().trim();
+				}
+				scanner.close();
+			}
+		} catch (Exception e) {}
+	}
 	
 	public void loadTombList(String world) {
 		if (!saveTombList) return;
 		try {
-			File fh = new File(this.getDataFolder().getPath(), "tombList-" + world + ".db");
+			File fh = new File(this.getDataFolder(), "tombList-" + world + ".db");
 			if (!fh.exists()) return;
 			Scanner scanner = new Scanner(fh);
 			while (scanner.hasNextLine()) {
@@ -207,14 +257,12 @@ public class Tombstone extends JavaPlugin {
 	public void saveTombList(String world) {
 		if (!saveTombList) return;
 		try {
-			File fh = new File(this.getDataFolder().getPath(), "tombList-" + world + ".db");
+			File fh = new File(this.getDataFolder(), "tombList-" + world + ".db");
 			BufferedWriter bw = new BufferedWriter(new FileWriter(fh));
 			for (Iterator<TombBlock> iter = tombList.iterator(); iter.hasNext();) {
 				TombBlock tBlock = iter.next();
 				// Skip not this world
 				if (!tBlock.getBlock().getWorld().getName().equalsIgnoreCase(world)) continue;
-				
-				StringBuilder builder = new StringBuilder();
 				
 				bw.append(printBlock(tBlock.getBlock()));
 				bw.append(":");
@@ -227,8 +275,6 @@ public class Tombstone extends JavaPlugin {
 				bw.append(String.valueOf(tBlock.getTime()));
 				bw.append(":");
 				bw.append(String.valueOf(tBlock.getLwcEnabled()));
-				
-				bw.append(builder.toString());
 				bw.newLine();
 			}
 			bw.close();
@@ -400,7 +446,8 @@ public class Tombstone extends JavaPlugin {
     		}
     		TombBlock tBlock = pList.get(slot);
     		double degrees = (getYawTo(tBlock.getBlock().getLocation(), p.getLocation()) + 270) % 360;
-    		//p.setCompassTarget(tBlock.getBlock().getLocation());
+    		p.setCompassTarget(tBlock.getBlock().getLocation());
+    		sendMessage(p, "Your compass is pointing at your tombstone");
     		sendMessage(p, "Your tombstone #" + args[0] + " is to the " + getDirection(degrees));
     		return true;
     	} else if (cmd.equalsIgnoreCase("tombreset")) {
@@ -416,7 +463,6 @@ public class Tombstone extends JavaPlugin {
 
 	/**
 	 * Gets the Yaw from one location to another in relation to North.
-	 * 
 	 */
 	public double getYawTo(Location from, Location to) {
 			final int distX = to.getBlockX() - from.getBlockX();
@@ -571,19 +617,38 @@ public class Tombstone extends JavaPlugin {
     }
 	
 	private class eListener extends EntityListener {
-		
+		@Override
+		public void onEntityDamage(EntityDamageEvent event) {
+			if (event.isCancelled()) return;
+			if (!(event.getEntity() instanceof Player))return;
+			
+			Player player = (Player)event.getEntity();
+			// Add them to the list if they're about to die
+			if (player.getHealth() - event.getDamage() <= 0) {
+				deathCause.put(player.getName(), event);
+			}
+		}
         @Override
         public void onEntityDeath(EntityDeathEvent event ) {
         	if (!(event.getEntity() instanceof Player)) return;
         	Player p = (Player)event.getEntity();
+        	String name = p.getName();
         	
         	if (!hasPerm(p, "tombstone.use", true)) return;
         	
-        	logEvent(p.getName() + " died.");
+        	logEvent(name + " died.");
         	
         	if (event.getDrops().size() == 0) {
         		sendMessage(p, "Inventory Empty.");
-        		logEvent(p.getName() + " inventory empty.");
+        		logEvent(name + " inventory empty.");
+        		return;
+        	}
+        	
+        	// Check if this is a void death
+        	EntityDamageEvent dmg = deathCause.get(name);
+        	if (dmg != null && dmg.getCause() == DamageCause.VOID) {
+        		sendMessage(p, "Your items were lost in the void.");
+        		logEvent(name + " died in the void.");
         		return;
         	}
         	
@@ -615,7 +680,7 @@ public class Tombstone extends JavaPlugin {
     		
 			if (pChestCount == 0 && !hasPerm(p, "tombstone.freechest", p.isOp())) {
 				sendMessage(p, "No chest found in inventory. Inventory dropped");
-				logEvent(p.getName() + " No chest in inventory.");
+				logEvent(name + " No chest in inventory.");
 				return;
 			}
         	
@@ -623,14 +688,14 @@ public class Tombstone extends JavaPlugin {
 			block = findPlace(block);
 			if ( block == null ) {
 				sendMessage(p, "Could not find room for chest. Inventory dropped");
-				logEvent(p.getName() + " Could not find room for chest.");
+				logEvent(name + " Could not find room for chest.");
 				return;
 			}
 			
 			// Check if there is a nearby chest
 			if (noInterfere && checkChest(block)) {
 				sendMessage(p, "There is a chest interfering with your tombstone. Inventory dropped");
-				logEvent(p.getName() + " Chest interfered with tombstone creation.");
+				logEvent(name + " Chest interfered with tombstone creation.");
 				return;
 			}
         	
@@ -646,7 +711,7 @@ public class Tombstone extends JavaPlugin {
 			BlockState state = block.getState();
 			if (!(state instanceof Chest)) {
 				sendMessage(p, "Could not access chest. Inventory dropped.");
-				logEvent(p.getName() + " Could not access chest.");
+				logEvent(name + " Could not access chest.");
 				return;
 			}
 			Chest sChest = (Chest)state;
@@ -713,10 +778,10 @@ public class Tombstone extends JavaPlugin {
 			if (tBlock.getSign() != null) tombBlockList.put(tBlock.getSign().getLocation(), tBlock);
 			
 			// Add tombstone to player lookup list
-			ArrayList<TombBlock> pList = playerTombList.get(p.getName());
+			ArrayList<TombBlock> pList = playerTombList.get(name);
 			if (pList == null) {
 				pList = new ArrayList<TombBlock>();
-				playerTombList.put(p.getName(), pList);
+				playerTombList.put(name, pList);
 			}
 			pList.add(tBlock);
 			
@@ -769,28 +834,40 @@ public class Tombstone extends JavaPlugin {
 			if (event.getDrops().size() > 0)
 				msg += event.getDrops().size() + " items wouldn't fit in chest.";
 			sendMessage(p, msg);
-			logEvent(p.getName() + " " + msg);
+			logEvent(name + " " + msg);
 			if (prot) {
 				sendMessage(p, "Chest protected with LWC. " + lwcTime + "s before chest is unprotected.");
-				logEvent(p.getName() + " Chest protected with LWC. " + lwcTime + "s before chest is unprotected.");
+				logEvent(name + " Chest protected with LWC. " + lwcTime + "s before chest is unprotected.");
 			}
 			if (tombRemove) {
 				sendMessage(p, "Chest will be automatically removed in " + removeTime + "s");
-				logEvent(p.getName() + " Chest will be automatically removed in " + removeTime + "s");
+				logEvent(name + " Chest will be automatically removed in " + removeTime + "s");
 			}
         }
         
         private void createSign(Block signBlock, Player p) {
-        	String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
-        	String time = new SimpleDateFormat("hh:mm a").format(new Date());
+        	// Variables used in template
+        	HashMap<String, String> vars = new HashMap<String, String>();
+        	vars.put("date", new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
+        	vars.put("time", new SimpleDateFormat("hh:mm a").format(new Date()));
+        	// Name and cause have to be checked for length.
+        	String name = p.getName();
+        	String cause = "Unknown";
+        	EntityDamageEvent dmg = deathCause.get(name);
+        	if (dmg != null) {
+        		deathCause.remove(name);
+        		cause = getCause(dmg);
+        	}
+        	if (name.length() > 15) name = name.substring(0, 15);
+        	if (cause.length() > 15) cause = cause.substring(0, 15);
+        	vars.put("name", name);
+        	vars.put("cause", cause);
+        	
         	signBlock.setType(Material.SIGN_POST);
         	final Sign sign = (Sign)signBlock.getState();
-        	String name = p.getName();
-        	if (name.length() > 15) name = name.substring(0, 15);
-        	sign.setLine(0, name);
-        	sign.setLine(1, "RIP");
-        	sign.setLine(2, date);
-        	sign.setLine(3, time);
+        	for (int i = 0; i < 4; i++) {
+        		sign.setLine(i, parseVars(signTemplate[i], vars));
+        	}
 			getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
 				public void run() {
 		        	sign.update();
@@ -798,6 +875,87 @@ public class Tombstone extends JavaPlugin {
 			});
         }
         
+    	private String getCause(EntityDamageEvent dmg) {
+    		switch (dmg.getCause()) {
+    			case ENTITY_ATTACK:
+    			{
+    				EntityDamageByEntityEvent event = (EntityDamageByEntityEvent)dmg;
+    				Entity e = event.getDamager();
+    				if (e == null) {
+    					return "a Dispenser";
+    				} else if (e instanceof Player) {
+    					return ((Player) e).getDisplayName();
+    				} else if (e instanceof PigZombie) {
+    					return "a Pig Zombie";
+    				} else if (e instanceof Giant) {
+    					return "a Giant";
+    				} else if (e instanceof Zombie) {
+    					return "a Zombie";
+    				} else if (e instanceof Skeleton) {
+    					return "a Skeleton";
+    				} else if (e instanceof Spider) {
+    					return "a Spider";
+    				} else if (e instanceof Creeper) {
+    					return "a Creeper";
+    				} else if (e instanceof Ghast) {
+    					return "a Ghast";
+    				} else if (e instanceof Slime) {
+    					return "a Slime";
+    				} else if (e instanceof Wolf) {
+    					return "a Wolf";
+    				} else {
+    					return "a Monster";
+    				}
+    			}
+    			case CONTACT:
+    				return "a Cactus";
+    			case SUFFOCATION:
+    				return "Suffocation";
+    			case FALL:
+    				return "a Fall";
+    			case FIRE:
+    				return "a Fire";
+    			case FIRE_TICK:
+    				return "Burning";
+    			case LAVA:
+    				return "Lava";
+    			case DROWNING:
+    				return "Drowning";
+    			case BLOCK_EXPLOSION:
+    				return "an Explosion";
+    			case ENTITY_EXPLOSION:
+    			{
+    				try {
+	    				EntityDamageByEntityEvent event = (EntityDamageByEntityEvent)dmg;
+	    				Entity e = event.getDamager();
+	    				if (e instanceof TNTPrimed) return "a TNT Explosion";
+	    				else if (e instanceof Fireball) return "a Ghast";
+	    				else return "a Creeper";
+    				} catch (Exception e) {
+    					return "an Explosion";
+    				}
+    			}
+    			case VOID:
+    				return "the Void";
+    			case LIGHTNING:
+    				return "Lightning";
+    			default:
+    				return "Unknown";
+    		}
+		}
+    	
+		private String parseVars(String format, HashMap<String, String> vars) {
+    		Pattern pattern = Pattern.compile("\\{(.*?)\\}");
+    		Matcher matcher = pattern.matcher(format);
+    		StringBuffer sb = new StringBuffer();
+    		while (matcher.find()) {
+    			String var = vars.get(matcher.group(1));
+    			if (var == null) var = "";
+    			matcher.appendReplacement(sb, Matcher.quoteReplacement(var));
+    		}
+    		matcher.appendTail(sb);
+    		return sb.toString();
+    	}
         
         /**
          * Find a block near the base block to place the tombstone
