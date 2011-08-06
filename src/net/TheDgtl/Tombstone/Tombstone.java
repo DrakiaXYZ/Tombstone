@@ -343,7 +343,8 @@ public class Tombstone extends JavaPlugin {
 		Block _block = tBlock.getBlock();
 		Protection protection = lwc.findProtection(_block);
 		if (protection != null) {
-			lwc.getPhysicalDatabase().unregisterProtection(protection.getId());
+			log.info("Found protection");
+			protection.remove();
 			//Set to public instead of removing completely
 			if (lwcPublic && !force)
 				lwc.getPhysicalDatabase().registerProtection(_block.getTypeId(), ProtectionTypes.PUBLIC, _block.getWorld().getName(), tBlock.getOwner(), "", _block.getX(), _block.getY(), _block.getZ());
@@ -354,7 +355,7 @@ public class Tombstone extends JavaPlugin {
 		if (_block != null) {
 			protection = lwc.findProtection(_block);
 			if (protection != null) {
-				lwc.getPhysicalDatabase().unregisterProtection(protection.getId());
+				protection.remove();
 				// Set to public instead of removing completely
 				if (lwcPublic && !force)
 					lwc.getPhysicalDatabase().registerProtection(_block.getTypeId(), ProtectionTypes.PUBLIC, _block.getWorld().getName(), tBlock.getOwner(), "", _block.getX(), _block.getY(), _block.getZ());
@@ -533,6 +534,7 @@ public class Tombstone extends JavaPlugin {
 
 			if (lwcPlugin != null && lwcEnable && tBlock.getLwcEnabled()) {
 				if (tBlock.getOwner().equals(p.getName()) || hasPerm(p, "tombstone.admin", p.isOp())) {
+					logEvent("Deactivating LWC");
 					deactivateLWC(tBlock, true);
 				} else {
 					event.setCancelled(true);
