@@ -81,6 +81,10 @@ Killed By
 =============
  Changes
 =============
+[Version 1.3.3]
+  - Fixed accidental clearing of /tomblist on quickloot
+  - Added SuperPerms support
+  - Do a build permission check so we don't spawn a chest in protected areas
 [Version 1.3.2]
   - Apparently LWC 3.30 had a change in API that wasn't documented, yay
 [Version 1.3.1]

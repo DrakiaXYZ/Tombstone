@@ -1,6 +1,6 @@
 name: Tombstone
 main: net.TheDgtl.Tombstone.Tombstone
-version: 1.3.2
+version: 1.3.3
 description: Tombstone mod for Bukkit
 author: Drakia
 website: http://www.thedgtl.net
@@ -16,3 +16,37 @@ commands:
   tombreset:
     description: Reset your compass to spawn
     usage: /<command>
+permissions:
+    tombstone.cmd.tomblist:
+        description: Allow use of the /tomblist command
+        default: op
+    tombstone.cmd.tombfind:
+        description: Allow use of the /tombfind command
+        default: op
+    tombstone.cmd.tombreset:
+        description: Allow use of the /tombreset command
+        default: op
+    tombstone.admin:
+        description: Allow this user to destroy other players tombstones
+        default: op
+    tombstone.use:
+        description: Allow the player to use the tombstone mod
+        default: true
+    tombstone.large:
+        description: Allow the player to spawn a large chest if carrying two chests and if one will fit
+        default: false
+    tombstone.sign:
+        description: Allow the player to have a sign on their tombstone if they're carrying one
+        default: true
+    tombstone.quickloot:
+        description: Allow a player to quickloot by right clicking the tombstone sign
+        default: true
+    tombstone.lwc:
+        description: Protect the placed chest if LWC is enabled
+        default: true
+    tobmstone.freechest:
+        description: Allow the player to get a chest whether they are carrying a one or not
+        default: false
+    tombstone.freesign:
+        description: Allow the player to get a sign whether they are carrying one or not
+        default: false
