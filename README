@@ -81,7 +81,7 @@ Killed By
 =============
  Changes
 =============
-[Version 1.3.3]
+[Version 1.3.5]
   - Fixed accidental clearing of /tomblist on quickloot
   - Added SuperPerms support
   - Do a build permission check so we don't spawn a chest in protected areas
