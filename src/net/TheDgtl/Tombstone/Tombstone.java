@@ -120,6 +120,7 @@ public class Tombstone extends JavaPlugin {
     private boolean noDestroy = false;
     private boolean noInterfere = true;
     private boolean logEvents = false;
+    private boolean skipBuildCheck = false;
     Configuration signConfig = null;
     String signTemplate[] = new String[4];
     
@@ -172,6 +173,7 @@ public class Tombstone extends JavaPlugin {
         noDestroy = config.getBoolean("noDestroy", noDestroy);
         noInterfere = config.getBoolean("noInterfere", noInterfere);
         logEvents = config.getBoolean("logEvents", logEvents);
+        skipBuildCheck = config.getBoolean("skipBuildCheck", skipBuildCheck);
     }
     
     public void defaultConfig() {
@@ -188,6 +190,7 @@ public class Tombstone extends JavaPlugin {
         config.setProperty("noDestroy", noDestroy);
         config.setProperty("noInterfere", noInterfere);
         config.setProperty("logEvents", logEvents);
+        config.setProperty("skipBuildCheck", skipBuildCheck);
         config.save();
     }
 
@@ -668,7 +671,7 @@ public class Tombstone extends JavaPlugin {
             Block block = p.getWorld().getBlockAt(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
             
             // Check if we're allowed to build here. Will stop things like a tomb in spawn
-            if (!canBuild(block, p)) {
+            if (!skipBuildCheck && !canBuild(block, p)) {
                 sendMessage(p, "Your tombstone can't spawn here. Inventory dropped.");
                 logEvent(name + " Building disallowed at death location.");
                 return;

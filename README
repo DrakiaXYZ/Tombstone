@@ -53,6 +53,7 @@ saveTombList - Whether to save a list of tombstones between server reloads
 destroyQuickLoot - Set to true to destroy the chest/sign on quickloot
 noDestroy - Set to true to disallow any player from destroying a tombstone (Other than quickloot) 
 noInterfere - Set whether or not to stop tombstone creation next to existing chests (Default true)
+skipBuildCheck - Set whether to skip the blockPlace check (True to bypass region protection) (Default false)
 
 =============
 Sign Template
@@ -81,6 +82,8 @@ Killed By
 =============
  Changes
 =============
+[Version 1.3.6]
+  - Added 'skipBuildCheck' option
 [Version 1.3.5]
   - Fixed accidental clearing of /tomblist on quickloot
   - Added SuperPerms support
