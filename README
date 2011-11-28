@@ -1,9 +1,4 @@
 =============
-   Updates
-=============
-Please visit http://forum.thedgtl.net for all updates and support!
-
-=============
  Description
 =============
 Tombstone - A deadman's chest plugin
@@ -59,6 +54,7 @@ destroyQuickLoot - Set to true to destroy the chest/sign on quickloot
 noDestroy - Set to true to disallow any player from destroying a tombstone (Other than quickloot) 
 noInterfere - Set whether or not to stop tombstone creation next to existing chests (Default true)
 skipBuildCheck - Set whether to skip the blockPlace check (True to bypass region protection) (Default false)
+logEvents - Whether to print some "useful" information to the server terminal.
 
 =============
 Sign Template

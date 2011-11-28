@@ -348,7 +348,6 @@ public class Tombstone extends JavaPlugin {
         Block _block = tBlock.getBlock();
         Protection protection = lwc.findProtection(_block);
         if (protection != null) {
-            log.info("Found protection");
             protection.remove();
             //Set to public instead of removing completely
             if (lwcPublic && !force)
@@ -1108,7 +1107,7 @@ public class Tombstone extends JavaPlugin {
                 
                 // Remove block, drop items on ground (One last free-for-all)
                 if (tombRemove && cTime > (tBlock.getTime() + removeTime)) {
-                    tBlock.getBlock().getWorld().loadChunk(tBlock.getBlock().getChunk());
+                    tBlock.getBlock().getChunk().load();
                     if (tBlock.getLwcEnabled()) {
                         deactivateLWC(tBlock, true);
                     }
@@ -1125,6 +1124,8 @@ public class Tombstone extends JavaPlugin {
                     Player p = getServer().getPlayer(tBlock.getOwner());
                     if (p != null)
                         sendMessage(p, "Your tombstone has been destroyed!");
+                    Block b = tBlock.getBlock();
+                    logEvent("[Tombstone] Removed tombstone @ (" + b.getX() + ", " + b.getY() + ", " + b.getZ() + ")");
                 }
             }
         }
