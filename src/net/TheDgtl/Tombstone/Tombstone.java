@@ -43,6 +43,7 @@ import org.bukkit.block.Chest;
 import org.bukkit.block.Sign;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Creeper;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Fireball;
@@ -56,41 +57,32 @@ import org.bukkit.entity.Spider;
 import org.bukkit.entity.TNTPrimed;
 import org.bukkit.entity.Wolf;
 import org.bukkit.entity.Zombie;
-import org.bukkit.event.Event;
-import org.bukkit.event.Event.Priority;
 import org.bukkit.event.Event.Result;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.BlockListener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.event.entity.EntityListener;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerListener;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.event.server.PluginEnableEvent;
-import org.bukkit.event.server.ServerListener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.util.config.Configuration;
 
 import com.griefcraft.lwc.LWC;
 import com.griefcraft.lwc.LWCPlugin;
 import com.griefcraft.model.Protection;
-import com.griefcraft.model.ProtectionTypes;
 import com.nijikokun.bukkit.Permissions.Permissions;
 
 public class Tombstone extends JavaPlugin {
-    private final eListener entityListener = new eListener();
-    private final bListener blockListener = new bListener();
-    private final sListener serverListener = new sListener();
-    private final pListener playerListener = new pListener();
     public static Logger log;
     PluginManager pm;
     
@@ -101,7 +93,7 @@ public class Tombstone extends JavaPlugin {
     private HashMap<Location, TombBlock> tombBlockList = new HashMap<Location, TombBlock>();
     private HashMap<String, ArrayList<TombBlock>> playerTombList = new HashMap<String, ArrayList<TombBlock>>();
     private HashMap<String, EntityDamageEvent> deathCause = new HashMap<String, EntityDamageEvent>();
-    private Configuration config;
+    private FileConfiguration newConfig;
     private Tombstone plugin;
     
     /**
@@ -121,34 +113,28 @@ public class Tombstone extends JavaPlugin {
     private boolean noInterfere = true;
     private boolean logEvents = false;
     private boolean skipBuildCheck = false;
-    Configuration signConfig = null;
     String signTemplate[] = new String[4];
     
     public void onEnable() {
         PluginDescriptionFile pdfFile = getDescription();
         log = Logger.getLogger("Minecraft");
-        config = this.getConfiguration();
         
-        // Create default config if needed
-        File configFile = new File(this.getDataFolder(), "/config.yml");
-        if (!configFile.exists()) defaultConfig();
+        newConfig = this.getConfig();
         
         log.info(pdfFile.getName() + " v." + pdfFile.getVersion() + " is enabled.");
         
         pm = getServer().getPluginManager();
-        pm.registerEvent(Event.Type.ENTITY_DEATH, entityListener, Priority.Monitor, this);
-        pm.registerEvent(Event.Type.ENTITY_DAMAGE, entityListener, Priority.Monitor, this);
-        pm.registerEvent(Event.Type.PLAYER_RESPAWN, playerListener, Priority.Monitor, this);
-        pm.registerEvent(Event.Type.BLOCK_BREAK, blockListener, Priority.Normal, this);
-        pm.registerEvent(Event.Type.PLAYER_INTERACT, playerListener, Priority.Highest, this);
-        pm.registerEvent(Event.Type.PLUGIN_ENABLE, serverListener, Priority.Monitor, this);
-        pm.registerEvent(Event.Type.PLUGIN_DISABLE, serverListener, Priority.Monitor, this);
+        
+        pm.registerEvents(new eListener(), this);
+        pm.registerEvents(new pListener(), this);
+        pm.registerEvents(new bListener(), this);
+        pm.registerEvents(new sListener(), this);
         
         permissions = (Permissions)checkPlugin("Permissions");
         lwcPlugin = (LWCPlugin)checkPlugin("LWC");
         plugin = this;
         
-        reloadConfig();
+        loadConfig();
         loadSignTemplate();
         for (World w : getServer().getWorlds())
             loadTombList(w.getName());
@@ -158,40 +144,28 @@ public class Tombstone extends JavaPlugin {
             getServer().getScheduler().scheduleSyncRepeatingTask(this, new TombThread(), 0L, 100L);
     }
     
-    public void reloadConfig() {
-        config.load();
-        lwcEnable = config.getBoolean("lwcEnable", lwcEnable);
-        lwcTime = config.getInt("lwcTimeout", lwcTime);
-        lwcRemove = config.getBoolean("lwcRemove", lwcRemove);
-        lwcPublic = config.getBoolean("lwcPublic", lwcPublic);
-        tombSign = config.getBoolean("tombSign", tombSign);
-        removeTime = config.getInt("removeTime", removeTime);
-        tombRemove = config.getBoolean("tombRemove", tombRemove);
-        pMessage = config.getBoolean("playerMessage", pMessage);
-        saveTombList = config.getBoolean("saveTombList", saveTombList);
-        destroyQuickLoot = config.getBoolean("destroyQuickLoot", destroyQuickLoot);
-        noDestroy = config.getBoolean("noDestroy", noDestroy);
-        noInterfere = config.getBoolean("noInterfere", noInterfere);
-        logEvents = config.getBoolean("logEvents", logEvents);
-        skipBuildCheck = config.getBoolean("skipBuildCheck", skipBuildCheck);
-    }
-    
-    public void defaultConfig() {
-        config.setProperty("lwcEnable", lwcEnable);
-        config.setProperty("lwcTimeout", lwcTime);
-        config.setProperty("lwcRemove", lwcRemove);
-        config.setProperty("lwcPublic", lwcPublic);
-        config.setProperty("tombSign", tombSign);
-        config.setProperty("removeTime", removeTime);
-        config.setProperty("tombRemove", tombRemove);
-        config.setProperty("playerMessage", pMessage);
-        config.setProperty("saveTombList", saveTombList);
-        config.setProperty("destroyQuickLoot", destroyQuickLoot);
-        config.setProperty("noDestroy", noDestroy);
-        config.setProperty("noInterfere", noInterfere);
-        config.setProperty("logEvents", logEvents);
-        config.setProperty("skipBuildCheck", skipBuildCheck);
-        config.save();
+    public void loadConfig() {
+		reloadConfig();
+		newConfig = this.getConfig();
+		// Copy default values if required
+		newConfig.options().copyDefaults(true);
+		
+        lwcEnable = newConfig.getBoolean("lwcEnable", lwcEnable);
+        lwcTime = newConfig.getInt("lwcTimeout", lwcTime);
+        lwcRemove = newConfig.getBoolean("lwcRemove", lwcRemove);
+        lwcPublic = newConfig.getBoolean("lwcPublic", lwcPublic);
+        tombSign = newConfig.getBoolean("tombSign", tombSign);
+        removeTime = newConfig.getInt("removeTime", removeTime);
+        tombRemove = newConfig.getBoolean("tombRemove", tombRemove);
+        pMessage = newConfig.getBoolean("playerMessage", pMessage);
+        saveTombList = newConfig.getBoolean("saveTombList", saveTombList);
+        destroyQuickLoot = newConfig.getBoolean("destroyQuickLoot", destroyQuickLoot);
+        noDestroy = newConfig.getBoolean("noDestroy", noDestroy);
+        noInterfere = newConfig.getBoolean("noInterfere", noInterfere);
+        logEvents = newConfig.getBoolean("logEvents", logEvents);
+        skipBuildCheck = newConfig.getBoolean("skipBuildCheck", skipBuildCheck);
+        
+        saveConfig();
     }
 
     public void loadSignTemplate() {
@@ -331,9 +305,9 @@ public class Tombstone extends JavaPlugin {
         // Register the chest + sign as private
         Block block = tBlock.getBlock();
         Block sign = tBlock.getSign();
-        lwc.getPhysicalDatabase().registerProtection(block.getTypeId(), ProtectionTypes.PRIVATE, block.getWorld().getName(), player.getName(), "", block.getX(), block.getY(), block.getZ());
+        lwc.getPhysicalDatabase().registerProtection(block.getTypeId(), Protection.Type.PRIVATE, block.getWorld().getName(), player.getName(), "", block.getX(), block.getY(), block.getZ());
         if (sign != null)
-            lwc.getPhysicalDatabase().registerProtection(sign.getTypeId(), ProtectionTypes.PRIVATE, block.getWorld().getName(), player.getName(), "", sign.getX(), sign.getY(), sign.getZ());
+            lwc.getPhysicalDatabase().registerProtection(sign.getTypeId(), Protection.Type.PRIVATE, block.getWorld().getName(), player.getName(), "", sign.getX(), sign.getY(), sign.getZ());
         
         tBlock.setLwcEnabled(true);
         return true;
@@ -351,7 +325,7 @@ public class Tombstone extends JavaPlugin {
             protection.remove();
             //Set to public instead of removing completely
             if (lwcPublic && !force)
-                lwc.getPhysicalDatabase().registerProtection(_block.getTypeId(), ProtectionTypes.PUBLIC, _block.getWorld().getName(), tBlock.getOwner(), "", _block.getX(), _block.getY(), _block.getZ());
+                lwc.getPhysicalDatabase().registerProtection(_block.getTypeId(), Protection.Type.PUBLIC, _block.getWorld().getName(), tBlock.getOwner(), "", _block.getX(), _block.getY(), _block.getZ());
         }
         
         // Remove the protection on the sign
@@ -362,7 +336,7 @@ public class Tombstone extends JavaPlugin {
                 protection.remove();
                 // Set to public instead of removing completely
                 if (lwcPublic && !force)
-                    lwc.getPhysicalDatabase().registerProtection(_block.getTypeId(), ProtectionTypes.PUBLIC, _block.getWorld().getName(), tBlock.getOwner(), "", _block.getX(), _block.getY(), _block.getZ());
+                    lwc.getPhysicalDatabase().registerProtection(_block.getTypeId(), Protection.Type.PUBLIC, _block.getWorld().getName(), tBlock.getOwner(), "", _block.getX(), _block.getY(), _block.getZ());
             }
         }
         tBlock.setLwcEnabled(false);
@@ -526,8 +500,9 @@ public class Tombstone extends JavaPlugin {
         log.info("[Tombstone] " + msg);
     }
     
-    private class bListener extends BlockListener {
-        @Override
+    @SuppressWarnings("unused")
+    private class bListener implements Listener {
+		@EventHandler
         public void onBlockBreak(BlockBreakEvent event) {
             Block b = event.getBlock();
             Player p = event.getPlayer();
@@ -557,8 +532,9 @@ public class Tombstone extends JavaPlugin {
         }
     }
     
-    private class pListener extends PlayerListener {
-        @Override
+    @SuppressWarnings("unused")
+    private class pListener implements Listener {
+    	@EventHandler(priority = EventPriority.HIGHEST)
         public void onPlayerInteract(PlayerInteractEvent event) {
             if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
             Block b = event.getClickedBlock();
@@ -629,8 +605,9 @@ public class Tombstone extends JavaPlugin {
         }
     }
     
-    private class eListener extends EntityListener {
-        @Override
+    @SuppressWarnings("unused")
+    private class eListener implements Listener {
+    	@EventHandler(priority = EventPriority.HIGHEST)
         public void onEntityDamage(EntityDamageEvent event) {
             if (event.isCancelled()) return;
             if (!(event.getEntity() instanceof Player))return;
@@ -641,7 +618,7 @@ public class Tombstone extends JavaPlugin {
                 deathCause.put(player.getName(), event);
             }
         }
-        @Override
+        @EventHandler(priority = EventPriority.HIGHEST)
         public void onEntityDeath(EntityDeathEvent event ) {
             if (!(event.getEntity() instanceof Player)) return;
             Player p = (Player)event.getEntity();
@@ -1060,8 +1037,9 @@ public class Tombstone extends JavaPlugin {
         }
     }
     
-    private class sListener extends ServerListener {
-        @Override
+    @SuppressWarnings("unused")
+    private class sListener implements Listener {
+        @EventHandler(priority = EventPriority.HIGHEST)
         public void onPluginEnable(PluginEnableEvent event) {
             if (lwcPlugin == null) {
                 if (event.getPlugin().getDescription().getName().equalsIgnoreCase("LWC")) {
@@ -1075,7 +1053,7 @@ public class Tombstone extends JavaPlugin {
             }
         }
         
-        @Override
+        @EventHandler(priority = EventPriority.HIGHEST)
         public void onPluginDisable(PluginDisableEvent event) {
             if (event.getPlugin() == lwcPlugin) {
                 log.info("[Tombstone] LWC plugin lost.");

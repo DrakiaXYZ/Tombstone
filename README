@@ -83,6 +83,10 @@ Killed By
 =============
  Changes
 =============
+[Version 1.3.7]
+  - Updated config handling
+  - Updated event handling
+  - Updated LWC handling
 [Version 1.3.6]
   - Added 'skipBuildCheck' option
 [Version 1.3.5]
