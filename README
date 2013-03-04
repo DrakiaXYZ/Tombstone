@@ -83,6 +83,8 @@ Killed By
 =============
  Changes
 =============
+[Version 1.3.8]
+  - Check for signs as well as chests when interfere check is enabled
 [Version 1.3.7]
   - Updated config handling
   - Updated event handling

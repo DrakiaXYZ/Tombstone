@@ -534,7 +534,9 @@ public class Tombstone extends JavaPlugin {
     
     @SuppressWarnings("unused")
     private class pListener implements Listener {
-    	@EventHandler(priority = EventPriority.HIGHEST)
+    	// To ignore the stupid updateInventory deprecation
+    	@SuppressWarnings("deprecation")
+		@EventHandler(priority = EventPriority.HIGHEST)
         public void onPlayerInteract(PlayerInteractEvent event) {
             if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
             Block b = event.getClickedBlock();
@@ -690,9 +692,9 @@ public class Tombstone extends JavaPlugin {
             }
             
             // Check if there is a nearby chest
-            if (noInterfere && checkChest(block)) {
-                sendMessage(p, "There is a chest interfering with your tombstone. Inventory dropped");
-                logEvent(name + " Chest interfered with tombstone creation.");
+            if (noInterfere && checkInterfere(block)) {
+                sendMessage(p, "There is a chest or sign interfering with your tombstone. Inventory dropped");
+                logEvent(name + " Chest/Sign interfered with tombstone creation.");
                 return;
             }
             
@@ -995,31 +997,41 @@ public class Tombstone extends JavaPlugin {
             // Check all 4 sides for air.
             Block exp;
             exp = base.getWorld().getBlockAt(base.getX() - 1, base.getY(), base.getZ());
-            if (canReplace(exp.getType()) && (!noInterfere || !checkChest(exp))) return exp;
+            if (canReplace(exp.getType()) && (!noInterfere || !checkInterfere(exp))) return exp;
             exp = base.getWorld().getBlockAt(base.getX(), base.getY(), base.getZ() - 1);
-            if (canReplace(exp.getType()) && (!noInterfere || !checkChest(exp))) return exp;
+            if (canReplace(exp.getType()) && (!noInterfere || !checkInterfere(exp))) return exp;
             exp = base.getWorld().getBlockAt(base.getX() + 1, base.getY(), base.getZ());
-            if (canReplace(exp.getType()) && (!noInterfere || !checkChest(exp))) return exp;
+            if (canReplace(exp.getType()) && (!noInterfere || !checkInterfere(exp))) return exp;
             exp = base.getWorld().getBlockAt(base.getX(), base.getY(), base.getZ() + 1);
-            if (canReplace(exp.getType()) && (!noInterfere || !checkChest(exp))) return exp;
+            if (canReplace(exp.getType()) && (!noInterfere || !checkInterfere(exp))) return exp;
             return null;
         }
         
-        boolean checkChest(Block base) {
-            // Check all 4 sides for a chest.
+        boolean checkInterfere(Block base) {
+            // Check all 4 sides for an interfering block
+        	int baseX = base.getX();
+        	int baseY = base.getY();
+        	int baseZ = base.getZ();
             Block exp;
-            exp = base.getWorld().getBlockAt(base.getX() - 1, base.getY(), base.getZ());
-            if (exp.getType() == Material.CHEST) return true;
-            exp = base.getWorld().getBlockAt(base.getX(), base.getY(), base.getZ() - 1);
-            if (exp.getType() == Material.CHEST) return true;
-            exp = base.getWorld().getBlockAt(base.getX() + 1, base.getY(), base.getZ());
-            if (exp.getType() == Material.CHEST) return true;
-            exp = base.getWorld().getBlockAt(base.getX(), base.getY(), base.getZ() + 1);
-            if (exp.getType() == Material.CHEST) return true;
+            exp = base.getWorld().getBlockAt(baseX - 1, baseY, baseZ);
+            if (willInterfere(exp.getType())) return true;
+            exp = base.getWorld().getBlockAt(baseX, baseY, baseZ - 1);
+            if (willInterfere(exp.getType())) return true;
+            exp = base.getWorld().getBlockAt(baseX + 1, baseY, baseZ);
+            if (willInterfere(exp.getType())) return true;
+            exp = base.getWorld().getBlockAt(baseX, baseY, baseZ + 1);
+            if (willInterfere(exp.getType())) return true;
             return false;
         }
         
-        Boolean canReplace(Material mat) {
+        boolean willInterfere(Material mat) {
+            if (mat == Material.CHEST || 
+                mat == Material.SIGN_POST || 
+                mat == Material.WALL_SIGN) return true;
+            return false;
+        }
+        
+        boolean canReplace(Material mat) {
             return (mat == Material.AIR || 
                     mat == Material.SAPLING || 
                     mat == Material.WATER || 
